@@ -1,61 +1,66 @@
-# Nation RP bot (Discord)
+# Nation RP Discord bot
 
-Discord bot for nation-style roleplay: resolutions, votes, RP-relative calendar time, reminders, and an optional HTTP API for websites or tooling.
+A Discord bot for communities that run **in-character resolutions** and votes, track an **RP calendar** against real time, send **RP-date reminders** by DM, and optionally expose a small **HTTP API** for a website or other automation.
 
-## Quick start
+This folder is usually used as part of the **NRP-Tools** monorepo (see the parent directory’s **README**). Open a terminal **inside this folder** (`NationRP Helper Bot`) before running the commands below.
 
-1. **Python 3.10+** recommended.
-2. Clone the repo and create a virtual environment:
+## Prerequisites
 
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+- **Python 3.10+**
+- A **Discord application** with a bot user and token ([Discord Developer Portal](https://discord.com/developers/applications))
+- **Privileged intents** as needed: the bot uses the **Server Members** intent for role-based checks. Enable it in the portal and when generating the invite URL.
 
-3. Copy **[`.env.example`](.env.example)** to **`.env`** and set `DISCORD_TOKEN` (and optional API variables — see below).
-4. Copy **[`config.example.json`](config.example.json)** to **`config.json`** and set channel/role IDs and RP time settings. See **[`CONFIG.md`](CONFIG.md)** for every key.
-5. Invite the bot with **applications.commands** and required intents (members if you use role checks).
-6. Run:
+## Install
 
-   ```bash
-   python bot.py
-   ```
+**Windows (PowerShell):**
 
-Slash commands sync on startup.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## RP time
+**macOS / Linux:**
 
-RP time is derived from two UTC **anchors** (an IRL instant and the in-character instant that aligned with it) plus **`real_days_per_rp_year`** (how many real-world days equal one in-character year). See **CONFIG.md** for the formula.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-- **`/time`** — current RP date/time for anyone.
-- **`/rptimemanage`** — **admin role only** (same role as `/admin`). Shows a panel with two buttons:
-  - **Anchors (IRL ↔ RP)** — modal to set both anchor datetimes (UTC). Use this for backdating or full realignments.
-  - **Speed & IRL sync** — optional new `real_days_per_rp_year`, and/or type **`SYNC`** in the sync field to set the IRL anchor to “now” while keeping the **current RP readout** unchanged.
+## Configure
 
-## HTTP API (optional)
+1. Copy **[`.env.example`](.env.example)** to **`.env`**. Set **`DISCORD_TOKEN`** to your bot token. Optionally set **`API_HOST`**, **`API_PORT`**, and **`API_SECRET`** if you use the HTTP API (see below).
 
-If **`API_PORT`** in `.env` is a positive integer, the bot starts an **aiohttp** server on **`API_HOST`:`API_PORT`**.
+2. Copy **[`config.example.json`](config.example.json)** to **`config.json`**. Fill in channel and role IDs and RP time settings. Every key is described in **[`CONFIG.md`](CONFIG.md)**.
 
-| Endpoint | Auth | Description |
-|----------|------|-------------|
-| `GET /api/rp-time` | None | JSON with current RP instant and anchor settings. |
-| `GET /api/reminders` | `Authorization: Bearer <API_SECRET>` | List reminders; optional query `user_id`. |
-| `POST /api/reminders` | Bearer | JSON body: `user_id`, `target_date` (`YYYY-MM-DD` or `DD/MM/YYYY`), `message`. |
-| `DELETE /api/reminders/{id}` | Bearer | Remove one reminder row. |
+3. **Invite URL:** include the **`applications.commands`** scope so slash commands work. Grant permissions your server needs (e.g. Send Messages, Embed Links, Manage Roles if you use the ping role, **Manage Channels** only if you rely on automatic channel renaming for the date display).
 
-Set a strong random **`API_SECRET`** for any reminder endpoint. **`GET /api/rp-time`** does not use the secret.
+## Run
 
-**Choosing a port:** use any free TCP port on your host. If you already use **80, 443, 7830, 8080, 8081, 8082**, pick something else (e.g. **8090** or **8765**).
+```bash
+python bot.py
+```
+
+Slash commands are synced when the bot connects.
+
+## Features (summary)
+
+| Area | Notes |
+|------|--------|
+| **RP time** | Derived from two UTC anchors and `real_days_per_rp_year`; see **CONFIG.md** for the formula. |
+| **`/time`** | Anyone can see the current RP date/time. |
+| **`/rptimemanage`** | Users with the configured **admin** role get a panel to edit anchors and dilation; optional **`SYNC`** aligns the IRL anchor to “now” without jumping the RP clock. |
+| **HTTP API** | If **`API_PORT`** in `.env` is a positive integer, **`GET /api/rp-time`** is public JSON. Reminder routes require **`Authorization: Bearer <API_SECRET>`**. Use a free port (avoid conflicting with existing services on the host). |
 
 ## Branding
 
-Server-specific strings come from **`config.json`**: `short_name`, `resolution_prefix`, `proposer_role_label`, date/time formats, and the date channel name template. Defaults match a generic RP server if keys are omitted.
+Display strings (server short name, resolution prefix, proposer role label, date formats, date channel rename template) are set in **`config.json`** so one codebase can serve different communities.
 
-## Database migrations
+## Database
 
-Older deployments may need the standalone migration scripts in the repo (`migrate.py`, `migrate2.py`) once, if columns were added before `CREATE TABLE` was updated.
+SQLite file name defaults to **`fns_bot.db`**; override with **`database_path`** in `config.json`. If you upgrade from an older schema, one-off scripts **`migrate.py`** and **`migrate2.py`** may still be useful; new installs rely on the tables created at startup.
 
 ## License
 
-Add your preferred license when publishing to GitHub.
+The repository root should contain a **LICENSE** file chosen by the maintainer; until then, treat usage as unspecified and ask the author for terms.

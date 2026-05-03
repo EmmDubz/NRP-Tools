@@ -1,5 +1,7 @@
 # Resource overlay — pixels in borders + offshore halo
 
+> **Using the NRP-Tools monorepo?** This project is the **`resource_overlay/`** directory at the repository root. Copy **`config.example.yaml`** to **`config.yaml`**, place map PNGs under **`maps/`**, then run **`1_Run_GUI.bat`** (GUI, Windows) or **`2_Run_Analysis.bat`** (batch analysis). Unless noted, paths below are relative to **`resource_overlay/`**.
+
 Matches a **political map** (who owns which land pixel) with a **resource map** (commodity colours) and reports **pixel counts** and **area (km²)** for:
 
 - resources on **national land**
@@ -12,22 +14,22 @@ Matches a **political map** (who owns which land pixel) with a **resource map** 
 If you are downloading this tool for the first time or sharing it with another group, setup is completely automated:
 
 1. Ensure you have **Python 3.10+** installed on your computer. (During installation, make sure to check the box that says **"Add Python to PATH"**).
-2. Download or clone this entire `tools/resource_overlay` folder.
-3. Double-click **`Open_resource_overlay_GUI.bat`**.
+2. Download or clone this entire `resource_overlay` folder.
+3. Double-click **`1_Run_GUI.bat`**.
 4. The script will automatically create a virtual environment (`.venv`) and install all required dependencies (like `numpy`, `Pillow`, `pyyaml`, `scipy`). It will then launch the GUI.
 
 ## End-to-end workflow (picker → tuner → analyze → prose)
 
-Keep **one** working `config.yaml` under `tools/resource_overlay/` and merge fragments into it when you can — that way the **deposit tuner**, **Run analyze…**, and the **headless `.bat`** all read the same file without juggling paths. **Two GUIs:** colour picker and deposit tuner cross-launch each other. **Two `.bat` files** cover double-click workflows (see below).
+Keep **one** working `config.yaml` under `resource_overlay/` and merge fragments into it when you can — that way the **deposit tuner**, **Run analyze…**, and the **headless `.bat`** all read the same file without juggling paths. **Two GUIs:** colour picker and deposit tuner cross-launch each other. **Two `.bat` files** cover double-click workflows (see below).
 
 | Step | Tool | You do |
 |------|------|--------|
-| 0. Open tools | **`Open_resource_overlay_GUI.bat`** | Starts **deposit_tuner_gui.py**. **Workflow** menu **1 · Nation colours** opens the picker; same app holds resources, lassos, **3 · Run pixel analysis**. |
+| 0. Open tools | **`1_Run_GUI.bat`** | Starts **deposit_tuner_gui.py**. **Workflow** menu **1 · Nation colours** opens the picker; same app holds resources, lassos, **3 · Run pixel analysis**. |
 | 1. Nation fills | **deposit_tuner_gui.py** | Select **Political Eyedropper** tool. Click map to sample → type Name in Step 0 → **Add Nation**. Or **Set as Ocean**. Click **Manage Nations…** to view/delete. |
 | 1b. Get nations into config | Tuner | Click **File → Save Project (full config.yaml)**. |
 | 2. Resource / ΔE anchors | Deposit tuner | Load `config.yaml` + PNGs → eyedropper / lasso → **Save resource_legend fragment…** or **Save full config.yaml…** |
 | 3. Named offshore patches (optional) | Deposit tuner **Saved sampler zones** | Append lassos → **Tag zones with EEZ / halo stats** → merge `deposit_sampler_zones` into `config.yaml` |
-| 4. Numbers + commodity view MD | **Workflow → 3 · Run pixel analysis** in tuner, or **`Run_resource_overlay_analyze_and_commodity_md.bat`** | Tuner writes CSV/JSON only under **`output/`**. The **`.bat`** runs **`analyze_resources.py`** then **`build_commodity_view_md.py`** (updates **`PROVISIONAL_commodity_view.md`**). Optional fragment path prompt = same as old **`--nations-yaml`** trial runs. |
+| 4. Numbers + commodity view MD | **Workflow → 3 · Run pixel analysis** in tuner, or **`2_Run_Analysis.bat`** | Tuner writes CSV/JSON only under **`output/`**. The **`.bat`** runs **`analyze_resources.py`** then **`build_commodity_view_md.py`** (updates **`PROVISIONAL_commodity_view.md`**). Optional fragment path prompt = same as old **`--nations-yaml`** trial runs. |
 
 Use **`deposit_zones_attribution.json`** for sentences like *“Most of this lasso sits in **Ardland**’s halo band; **N** px are outside every nation’s halo”* (convert pixels → km² with `km_per_pixel`). The main table already credits offshore resources to nations via **`pixels_offshore`**.
 
@@ -53,7 +55,7 @@ The resource map uses **smooth shading** — one hex code is not enough.
 
 ## Deposit tuner GUI (preview masks & sample lassos)
 
-**`Open_resource_overlay_GUI.bat`** or **`python deposit_tuner_gui.py`** in `tools/resource_overlay/`.
+**`1_Run_GUI.bat`** or **`python deposit_tuner_gui.py`** in `resource_overlay/`.
 
 - **Menu bar (File / Maps / Workflow / View / Help):** file operations, numbered workflow steps, preview mode, blend stack, ocean mask, shortcuts **Ctrl+O** / **Ctrl+S** / **Ctrl+Q** match the labels.
 - **Strip under the menus:** zoom readout, **Preview** mode (one dropdown instead of many radio buttons), **Deposit** commodity, live **ΔE** trial, **Show both maps** + blend % slider.
@@ -78,7 +80,7 @@ The resource map uses **smooth shading** — one hex code is not enough.
   - **`duplicate_fill_splits`**: `nations:` + **`seeds_xy`** (image coordinates **x, y**) — Voronoi partition of that colour (one seed per polity), **or**
   - omit seeds/polygons — **Lloyd** k-means on pixel positions; **largest** region → **first** nation in YAML among those sharing the RGB.
 
-**Human workflow:** Open **`Open_resource_overlay_GUI.bat`**. Use the **Tool** dropdown to select **Political Eyedropper**. Click the map, type a name in the sidebar, and click **Add Nation**. Use **Set as Ocean** for `ocean_colors`. Click **Manage Nations…** to view or delete them. Finally, use **File → Save Everything (config.yaml)** to write to `config.yaml`.
+**Human workflow:** Open **`1_Run_GUI.bat`**. Use the **Tool** dropdown to select **Political Eyedropper**. Click the map, type a name in the sidebar, and click **Add Nation**. Use **Set as Ocean** for `ocean_colors`. Click **Manage Nations…** to view or delete them. Finally, use **File → Save Everything (config.yaml)** to write to `config.yaml`.
 
 ### Nation fragment vs `config.yaml`
 
@@ -124,23 +126,25 @@ Read **`00_READ_ME_FIRST.txt`** in this folder for order. Short version:
 
 | File | When |
 |------|------|
-| **`Open_resource_overlay_GUI.bat`** | **Interactive:** deposit tuner (colour picker link, lassos, **Run analyze…**). |
-| **`Run_resource_overlay_analyze_and_commodity_md.bat`** | **Headless:** `analyze_resources.py` + `build_commodity_view_md.py` in one go (CSV/JSON + `PROVISIONAL_commodity_view.md`). |
+| **`1_Run_GUI.bat`** | **Interactive:** deposit tuner (colour picker link, lassos, **Run analyze…**). |
+| **`2_Run_Analysis.bat`** | **Headless:** `analyze_resources.py` + `build_commodity_view_md.py` in one go (CSV/JSON + `PROVISIONAL_commodity_view.md`). |
 
 Echo lines are ASCII-only (avoids mojibake in `cmd.exe`). **`python`** must be on PATH.
 
 **`.exe`:** not shipped; PyInstaller would bundle a full Python — the `.bat` files stay easy to edit.
 
-## Quick start
+## Quick start (command line)
+
+From the **`resource_overlay`** directory (for example `…/NRP-Tools/resource_overlay` after cloning the monorepo):
 
 ```bash
-cd tools/resource_overlay
-pip install -r requirements.txt
+pip install -r scripts/requirements.txt
 cp config.example.yaml config.yaml
-# Put aligned PNGs in maps/ — edit config.yaml
-python analyze_resources.py --political "maps/Political Map.png" --resources "maps/Resource Map aligned.png" --config config.yaml --halo-km 80 --out output/results.csv --json output/results.json
-python build_commodity_view_md.py
-# Or double-click Run_resource_overlay_analyze_and_commodity_md.bat
+# Add aligned PNGs under maps/ and edit config.yaml (paths, halo, nations, etc.)
+
+python scripts/analyze_resources.py --political "maps/Political Map.png" --resources "maps/Resource Map aligned.png" --config config.yaml --halo-km 80 --out output/results.csv --json output/results.json
+python scripts/build_commodity_view_md.py
+# On Windows you can instead double-click 2_Run_Analysis.bat after config and maps are ready
 ```
 
 ### Arguments
@@ -167,7 +171,7 @@ python build_commodity_view_md.py
 
 ## Where to keep the map files
 
-**Best practice:** save the aligned political and resource **PNGs on disk** in this repo, e.g. `tools/resource_overlay/maps/political.png` and `resources.png` (that folder is gitignored except `.gitkeep` so you don’t bloat the repo). Paths are stable for scripts and for future chat sessions.
+**Best practice:** keep aligned political and resource **PNGs** under **`maps/`** next to `config.yaml`, and reference those paths from `config.yaml`. Map files are often large; some teams omit them from git and document required filenames for collaborators instead.
 
 **Chat / Cursor image links** from an old message are **not** a durable source — a new session may not resolve them. Re-attach or copy files into `maps/` when you rerun the tool.
 

@@ -1,31 +1,37 @@
 # NRP-Tools
 
-Small toolkit for nation-style roleplay: a Discord bot and a resource overlay helper.
+Public utilities for **nation-style roleplay** and related map workflows. This repository is a **monorepo**: two independent tools live in separate folders; each has its own README and dependencies.
 
-## Contents
+## What’s included
 
-| Folder | Description |
-|--------|-------------|
-| [`NationRP Helper Bot/`](NationRP%20Helper%20Bot/README.md) | Discord bot: resolutions, votes, RP time, reminders, optional HTTP API. |
-| [`resource_overlay/`](resource_overlay/README.md) | Resource overlay / analysis tooling (see that folder’s README and batch files). |
+| Folder | What it does |
+|--------|----------------|
+| **[`NationRP Helper Bot/`](NationRP%20Helper%20Bot/README.md)** | Discord application: resolutions, voting, RP calendar time, DM reminders, optional HTTP API. |
+| **[`resource_overlay/`](resource_overlay/README.md)** | Desktop tooling: align political and resource maps, tune legends, run pixel analysis, export reports. |
 
-## First-time setup
+## Requirements
 
-1. Clone this repository.
-2. Open either subfolder and follow its **README** (Python venv, `pip install`, copy `config.example.*` → local config, copy `.env.example` → `.env` where used).
-3. Do **not** commit `.env`, `*.db`, or local `config.json` / `config.yaml`; they are listed in the root [`.gitignore`](.gitignore).
+- **Git** (to clone).
+- **Python 3.10+** on the machine where you run each tool (see each subfolder’s README).
+- On Windows, the resource overlay includes **`.bat`** launchers; other platforms can use the same Python commands documented in that README.
 
-## Git remote (GitHub)
+## Getting started
 
-If this folder is not linked yet:
+1. **Clone** this repository (replace the URL with yours or the upstream you use):
 
-```bash
-cd path/to/NRP-Tools
-git remote add origin https://github.com/YOUR_USERNAME/NRP-Tools.git
-git branch -M main
-git add .
-git commit -m "Initial commit: NationRP bot and resource overlay"
-git push -u origin main
-```
+   ```bash
+   git clone https://github.com/<owner>/NRP-Tools.git
+   cd NRP-Tools
+   ```
 
-Replace `YOUR_USERNAME` with your GitHub username or org.
+2. Open the folder for the tool you need and follow **that folder’s `README.md`** end to end (virtual environment, `pip install`, copying `config.example.*` → local config, and `.env.example` → `.env` for the bot).
+
+3. **Do not commit secrets or machine-local files.** The root [`.gitignore`](.gitignore) excludes common cases (`.env`, local `config.json` / `config.yaml`, databases, Python caches, overlay `output/`). Keeping `.gitignore` in the repository is **normal and recommended** so every clone behaves the same.
+
+## Contributing or forking
+
+Use issues or pull requests on GitHub if you extend a tool and want to share changes. Fork the repository if you are adapting it for another community.
+
+## License
+
+Unless otherwise noted in a subfolder, add or choose a **LICENSE** file at the repository root when you publish; downstream users then know what they may do with the code.
