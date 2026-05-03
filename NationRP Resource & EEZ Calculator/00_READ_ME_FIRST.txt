@@ -1,5 +1,7 @@
-Resource overlay — which file to run first
-============================================
+NationRP Resource & EEZ Calculator — which file to run first
+================================================================
+
+Political + resource map overlay, pixel counts, km², and offshore halo (EEZ-style) stats.
 
 This folder is part of the NRP-Tools repository unless you copied it alone.
 
@@ -7,10 +9,10 @@ TWO BATCH FILES (Windows, in this folder)
 -----------------------------------------
   1_Run_GUI.bat
        Starts deposit_tuner_gui.py — political colours, lassos, save config, run analysis from the GUI.
-       (Writes output under output/; use the second batch if you want the full analysis + commodity markdown pipeline from the command line.)
+       (Writes output under output/; use the second batch for the full CLI analysis + commodity markdown pipeline.)
 
   2_Run_Analysis.bat
-       Runs analyze_resources.py then build_commodity_view_md.py using maps/ and config.yaml.
+       Runs scripts\analyze_resources.py then scripts\build_commodity_view_md.py using maps\ and config.yaml.
        Optional prompt: nation YAML fragment (--nations-yaml) for a one-off run; press Enter to skip.
 
 PREREQUISITES
@@ -19,4 +21,4 @@ PREREQUISITES
   - The .bat files create scripts\.venv and install dependencies on first run.
   - config.yaml (copy from config.example.yaml) and the map PNG paths it references.
 
-More detail: README.md in this folder.
+Full documentation: README.md in this folder.

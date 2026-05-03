@@ -29,10 +29,10 @@ htmlcov/
 
 # --- App config (use *example* files in repo only) ---
 NationRP Helper Bot/config.json
-resource_overlay/config.yaml
+NationRP Resource & EEZ Calculator/config.yaml
 
-# --- resource_overlay generated output ---
-resource_overlay/output/
+# --- NationRP Resource & EEZ Calculator generated output ---
+NationRP Resource & EEZ Calculator/output/
 
 # --- Editors & OS ---
 .idea/

@@ -12,10 +12,10 @@ for r in rows:
     by_c[r["commodity"]].append(r)
 
 lines: list[str] = [
-    "# IRP 2008 — Provisional commodity view (resource overlay)",
+    "# IRP 2008 — Provisional commodity view (NationRP Resource & EEZ Calculator)",
     "",
-    "Generated from `tools/resource_overlay/output/results.json`. Re-run "
-    "`analyze_resources.py` after any map or `config.yaml` change.",
+    "Generated from `output/results.json` in this tool. Re-run "
+    "`scripts/analyze_resources.py` after any map or `config.yaml` change.",
     "",
     "**Agents:** treat as provisional. When commodity totals imply tier changes, sync "
     "`reference/resource_endowments.md` and `PROVISIONAL_nirvalistat_detailed_view.md` "
@@ -23,7 +23,7 @@ lines: list[str] = [
     "",
     "## Workflow note",
     "",
-    "- **Overlay:** `tools/resource_overlay/README.md` — aligned political + resource PNGs, "
+    "- **Tool:** see `README.md` in **NationRP Resource & EEZ Calculator** — aligned political + resource PNGs, "
     "local `config.yaml`, `--halo-km`.",
     "- **`pct_of_global_commodity`:** share of that commodity's summed `area_km2_total` "
     "across all nations in this config (land + offshore halo).",
@@ -32,7 +32,7 @@ lines: list[str] = [
     "`duplicate_fill_splits` with `seeds_xy` (Voronoi), or omit for Lloyd auto-split "
     "(largest blob = first nation in YAML for that RGB).",
     "- **Brush / relabel UI:** not included; use GIMP layer masks or extend the picker if needed.",
-    "- **Deposit hull attribution:** `tools/resource_overlay/output/deposit_zones_attribution.json` — "
+    "- **Deposit hull attribution:** `output/deposit_zones_attribution.json` — "
     "per-lasso `on_land_px`, `eez_offshore_px`, `beyond_halo_ocean_px` (same halo rule as analysis). "
     "Cross-check with Stage 2 “Deposit hull checks” in `cycles/IRP_2008/PROVISIONAL_stage1_stage2.md`.",
     "",

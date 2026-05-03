@@ -1,6 +1,14 @@
-# Resource overlay — pixels in borders + offshore halo
+# NationRP Resource & EEZ Calculator
 
-> **Using the NRP-Tools monorepo?** This project is the **`resource_overlay/`** directory at the repository root. Copy **`config.example.yaml`** to **`config.yaml`**, place map PNGs under **`maps/`**, then run **`1_Run_GUI.bat`** (GUI, Windows) or **`2_Run_Analysis.bat`** (batch analysis). Unless noted, paths below are relative to **`resource_overlay/`**.
+**Political map + resource map overlay:** classify land by nation from fill colours, classify **commodities** on the resource layer using **CIELAB ΔE**, and compute an **offshore halo** (EEZ-style band in km) so ocean pixels are attributed to nations **without** painting halos over foreign land. Outputs are **CSV / JSON** (pixel counts and km²) plus optional **markdown** summaries.
+
+| | |
+|--|--|
+| **Monorepo location** | This package is the **`NationRP Resource & EEZ Calculator/`** folder inside the parent **[NRP-Tools](../README.md)** repository (clone that repo, then open this subfolder). |
+| **Start here** | Read **`00_READ_ME_FIRST.txt`**, then copy **`config.example.yaml`** → **`config.yaml`**, add maps under **`maps/`**, and run **`1_Run_GUI.bat`** (Windows GUI) or **`2_Run_Analysis.bat`** (batch pipeline). |
+| **Paths in this doc** | Unless stated otherwise, paths are relative to **`NationRP Resource & EEZ Calculator/`** (this folder). |
+
+## What you get
 
 Matches a **political map** (who owns which land pixel) with a **resource map** (commodity colours) and reports **pixel counts** and **area (km²)** for:
 
@@ -14,13 +22,13 @@ Matches a **political map** (who owns which land pixel) with a **resource map** 
 If you are downloading this tool for the first time or sharing it with another group, setup is completely automated:
 
 1. Ensure you have **Python 3.10+** installed on your computer. (During installation, make sure to check the box that says **"Add Python to PATH"**).
-2. Download or clone this entire `resource_overlay` folder.
+2. Download or clone this entire **`NationRP Resource & EEZ Calculator`** folder (or clone the full **NRP-Tools** repo and open that subfolder).
 3. Double-click **`1_Run_GUI.bat`**.
 4. The script will automatically create a virtual environment (`.venv`) and install all required dependencies (like `numpy`, `Pillow`, `pyyaml`, `scipy`). It will then launch the GUI.
 
 ## End-to-end workflow (picker → tuner → analyze → prose)
 
-Keep **one** working `config.yaml` under `resource_overlay/` and merge fragments into it when you can — that way the **deposit tuner**, **Run analyze…**, and the **headless `.bat`** all read the same file without juggling paths. **Two GUIs:** colour picker and deposit tuner cross-launch each other. **Two `.bat` files** cover double-click workflows (see below).
+Keep **one** working `config.yaml` in **this folder** and merge YAML fragments into it when you can — that way the **deposit tuner**, **Run analyze…**, and the **headless `.bat`** all read the same file without juggling paths. **Two GUIs:** colour picker and deposit tuner cross-launch each other. **Two `.bat` files** cover double-click workflows (see below).
 
 | Step | Tool | You do |
 |------|------|--------|
@@ -55,7 +63,7 @@ The resource map uses **smooth shading** — one hex code is not enough.
 
 ## Deposit tuner GUI (preview masks & sample lassos)
 
-**`1_Run_GUI.bat`** or **`python deposit_tuner_gui.py`** in `resource_overlay/`.
+**`1_Run_GUI.bat`** (Windows) or, from **this folder** in a terminal: **`python scripts/deposit_tuner_gui.py`**.
 
 - **Menu bar (File / Maps / Workflow / View / Help):** file operations, numbered workflow steps, preview mode, blend stack, ocean mask, shortcuts **Ctrl+O** / **Ctrl+S** / **Ctrl+Q** match the labels.
 - **Strip under the menus:** zoom readout, **Preview** mode (one dropdown instead of many radio buttons), **Deposit** commodity, live **ΔE** trial, **Show both maps** + blend % slider.
@@ -135,7 +143,7 @@ Echo lines are ASCII-only (avoids mojibake in `cmd.exe`). **`python`** must be o
 
 ## Quick start (command line)
 
-From the **`resource_overlay`** directory (for example `…/NRP-Tools/resource_overlay` after cloning the monorepo):
+From **this folder** (for example `…/NRP-Tools/NationRP Resource & EEZ Calculator` after cloning the monorepo):
 
 ```bash
 pip install -r scripts/requirements.txt
