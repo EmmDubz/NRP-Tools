@@ -24,7 +24,7 @@ lines: list[str] = [
     "## Workflow note",
     "",
     "- **Tool:** see `README.md` in **NationRP Resource & EEZ Calculator** — aligned political + resource PNGs, "
-    "local `config.yaml`, `--halo-km`.",
+    "local `config.yaml` (`offshore_halo_px` / CLI `--halo-px` or `--halo-km`).",
     "- **`pct_of_global_commodity`:** share of that commodity's summed `area_km2_total` "
     "across all nations in this config (land + offshore halo).",
     "- **Colours:** `python deposit_tuner_gui.py` — click map, register nation RGB, save project "

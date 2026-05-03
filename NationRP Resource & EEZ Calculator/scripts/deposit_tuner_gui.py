@@ -20,10 +20,9 @@ corners of orange outlines / saved zones. Tune Colour merge and Min blob px.
 
 NumPy rasters are shape (height, width, 3) — display math uses width/height correctly.
 
-Offshore EEZ / halo preview: optional semi-transparent tint on ocean pixels assigned
-to a nation by the same assign_offshore logic as analyze_resources (width in px;
-default 62 px matches typical project tuning; equals --halo-km / km_per_pixel when you
-align those with config).
+Offshore EEZ / halo preview: optional wire on ocean pixels assigned by the same
+assign_offshore logic as analyze_resources (**Halo radius (px)** = export band; political
+eyedropper uses that same px radius with effective land so it matches CSV / JSON).
 
 Run: python deposit_tuner_gui.py — menu bar: File, Maps, Workflow, View, Help; compact strip for preview/deposit/blend.
 """
@@ -347,7 +346,8 @@ class DepositTunerApp(tk.Tk):
         self._eez_overlay_rgb: np.ndarray | None = None
         self._eez_overlay_alpha: np.ndarray | None = None
         self.show_eez_overlay = tk.BooleanVar(value=False)
-        self.eez_halo_px = tk.IntVar(value=62)
+        # Canonical offshore band for EEZ overlay + CSV (persisted as offshore_halo_px on save).
+        self.eez_halo_px = tk.IntVar(value=13)
         self.eez_use_title_attach = tk.BooleanVar(value=False)
         self._eez_async_busy = False
         self._eez_compute_token = 0
@@ -359,6 +359,12 @@ class DepositTunerApp(tk.Tk):
         self._lab_cache_id: int | None = None
         self._lab_cache_arr: np.ndarray | None = None
         self._de_dist_cache: dict[tuple[int, int, str], np.ndarray] = {}
+        # Same rule as analyze_resources.run(): effective land + halo from eez_halo_px (image px)
+        self._csv_offshore_cache_key: tuple | None = None
+        self._csv_offshore_owner: np.ndarray | None = None
+        self._csv_attrib_land_masks: dict[str, np.ndarray] | None = None
+        self._csv_attrib_nation_order: list[str] | None = None
+        self._csv_ocean: np.ndarray | None = None
 
         self._draw_job: str | None = None
         self._configure_job: str | None = None
@@ -381,7 +387,6 @@ class DepositTunerApp(tk.Tk):
         self._political_path: Path | None = None
         self._resource_path: Path | None = None
         self._analyze_busy = False
-        self.analysis_halo_km = tk.IntVar(value=80)
 
         # Nation list view
         self._nation_list_window: tk.Toplevel | None = None
@@ -598,7 +603,8 @@ class DepositTunerApp(tk.Tk):
             ezf,
             text=(
                 "Halo width in image pixels (Euclidean from land into ocean_colors). "
-                "Default 62 px — align batch: --halo-km = (px) × km_per_pixel."
+                "This value drives the EEZ overlay and full pixel analysis / CSV (same band). "
+                "Political eyedropper uses it with effective land (same as export)."
             ),
             wraplength=320,
             justify=tk.LEFT,
@@ -680,17 +686,12 @@ class DepositTunerApp(tk.Tk):
             text=(
                 "Writes output/results.csv and output/results.json (same as analyze_resources / headless .bat step 1). "
                 "If deposit_sampler_zones is in the saved config, also writes deposit_zones_attribution.json. "
+                "Offshore band = Step 2 Halo radius (px); saved as offshore_halo_px in config.yaml. "
                 "Run analyze saves your in-memory config to the path from Load config (or prompts once)."
             ),
             wraplength=320,
             justify=tk.LEFT,
         ).pack(anchor=tk.W)
-        hrow = ttk.Frame(bf)
-        hrow.pack(anchor=tk.W, pady=(6, 0))
-        ttk.Label(hrow, text="Offshore halo (km, --halo-km):").pack(side=tk.LEFT)
-        tk.Spinbox(
-            hrow, from_=1, to=2000, width=6, textvariable=self.analysis_halo_km
-        ).pack(side=tk.LEFT, padx=4)
         ttk.Button(bf, text="Open output folder", command=self._open_output_folder).pack(
             anchor=tk.W, pady=(6, 0)
         )
@@ -1518,6 +1519,7 @@ class DepositTunerApp(tk.Tk):
             int(self.eez_halo_px.get())
         except tk.TclError:
             return
+        self._invalidate_csv_attribution_cache()
         self._invalidate_eez_overlay()
         self._update_eez_km_hint()
         self._schedule_redraw_fast()
@@ -1684,6 +1686,56 @@ class DepositTunerApp(tk.Tk):
         self._eez_offshore_owner = None
         self._eez_nation_order = None
         self._eez_land_masks = None
+        self._invalidate_csv_attribution_cache()
+
+    def _invalidate_csv_attribution_cache(self) -> None:
+        self._csv_offshore_cache_key = None
+        self._csv_offshore_owner = None
+        self._csv_attrib_land_masks = None
+        self._csv_attrib_nation_order = None
+        self._csv_ocean = None
+
+    def _ensure_csv_attribution(self) -> bool:
+        """
+        Build grids matching ``analyze_resources.run()``: ``effective_nation_masks``,
+        ``water_mask = ocean & ~land_union``, ``assign_offshore(..., halo_px)`` from Step 2.
+        Used by the political eyedropper so labels match ``pixels_offshore`` / CSV.
+        """
+        if self._pol is None or self._cfg is None:
+            return False
+        try:
+            halo_px = float(self.eez_halo_px.get())
+        except (tk.TclError, ValueError):
+            return False
+        if halo_px <= 0:
+            return False
+        km = float(self._cfg.get("km_per_pixel", 6.0))
+        if km <= 0:
+            return False
+        key = (id(self._pol), self._cfg_revision, halo_px, km)
+        if self._csv_offshore_cache_key == key and self._csv_offshore_owner is not None:
+            return True
+        pol = self._pol
+        cfg = self._cfg
+        nation_masks, _wctx, _land_u, nation_order, ocean = ar.nation_masks_and_context(
+            pol, cfg
+        )
+        if not nation_order:
+            return False
+        land_masks = ar.effective_nation_masks(
+            pol, cfg, nation_masks, nation_order, ocean
+        )
+        land_union = np.zeros_like(ocean, dtype=bool)
+        for m in land_masks.values():
+            land_union |= m
+        water_mask = ocean & ~land_union
+        owner, _ = ar.assign_offshore(land_masks, water_mask, halo_px, nation_order)
+        self._csv_offshore_cache_key = key
+        self._csv_offshore_owner = owner
+        self._csv_attrib_land_masks = land_masks
+        self._csv_attrib_nation_order = nation_order
+        self._csv_ocean = ocean
+        return True
 
     def _reload_eez_full(self) -> None:
         """Clear EEZ cache and force a fresh background compute."""
@@ -2518,7 +2570,15 @@ class DepositTunerApp(tk.Tk):
             self._update_nation_ui_state()
             self._log(f"Loaded config {path}")
             self._reload_zones_from_cfg()
-            
+            opx = self._cfg.get("offshore_halo_px")
+            if opx is not None:
+                try:
+                    v = int(float(opx))
+                    if v > 0:
+                        self.eez_halo_px.set(v)
+                except (ValueError, TypeError, tk.TclError):
+                    pass
+
             # Auto-load maps if paths are in config
             if self._cfg:
                 pol_path = self._cfg.get("map_political_path")
@@ -3360,6 +3420,12 @@ class DepositTunerApp(tk.Tk):
                 + " (before saving config to disk)."
             )
         self._sync_zones_into_cfg()
+        try:
+            px = int(self.eez_halo_px.get())
+            if px > 0:
+                self._cfg["offshore_halo_px"] = px
+        except tk.TclError:
+            pass
 
     def _merge_nations_fragment(self) -> None:
         """Merge nations (+ optional keys) from a YAML fragment into in-memory config."""
@@ -3751,11 +3817,14 @@ class DepositTunerApp(tk.Tk):
             return
 
         try:
-            halo = float(self.analysis_halo_km.get())
+            halo_px_run = float(self.eez_halo_px.get())
         except tk.TclError:
             return
-        if halo <= 0:
-            messagebox.showinfo("Analyze", "Halo km must be positive.")
+        if halo_px_run <= 0:
+            messagebox.showinfo(
+                "Analyze",
+                "Halo radius (px) in Step 2 must be positive.",
+            )
             return
 
         out_dir = _overlay_root() / "output"
@@ -3782,8 +3851,8 @@ class DepositTunerApp(tk.Tk):
                         pol_path,
                         res_path,
                         cfg_path,
-                        halo,
                         out_csv,
+                        halo_px=halo_px_run,
                         out_json=out_json,
                         nations_yaml=None,
                         progress=prog,
@@ -3955,36 +4024,53 @@ class DepositTunerApp(tk.Tk):
             rgb = tuple(int(x) for x in self._pol[iy, ix])
             self._last_pol_rgb = rgb
             
-            # Check if this belongs to a known nation
+            # Attribution for CSV / JSON: same land + halo as analyze_resources.run()
             owner_text = "Unclaimed / Unknown"
-            
-            # 1. First check the computed masks and EEZs if available
-            # Use the full-map masks if we have them, otherwise fallback to cache
-            land_masks = getattr(self, "_eez_land_masks", None)
-            offshore_owner = getattr(self, "_eez_offshore_owner", None)
-            nation_order = getattr(self, "_eez_nation_order", None)
-
-            if land_masks:
-                # Check land
-                for name, mask in land_masks.items():
+            csv_ok = self._cfg is not None and self._ensure_csv_attribution()
+            if csv_ok:
+                lm = self._csv_attrib_land_masks
+                no = self._csv_attrib_nation_order
+                ow = self._csv_offshore_owner
+                oc = self._csv_ocean
+                assert lm is not None and no is not None and ow is not None and oc is not None
+                for name, mask in lm.items():
                     if mask[iy, ix]:
                         owner_text = name
                         break
-                
-                # If not land, check EEZ
-                if owner_text == "Unclaimed / Unknown" and offshore_owner is not None:
-                    wo = offshore_owner[iy, ix]
-                    if wo >= 0 and wo < len(nation_order):
-                        owner_text = f"Ocean ({nation_order[wo]} EEZ)"
-                    else:
-                        # Check if it's just ocean
-                        if self._cfg and "ocean_colors" in self._cfg:
+                if owner_text == "Unclaimed / Unknown":
+                    woi = int(ow[iy, ix])
+                    if woi >= 0 and woi < len(no):
+                        owner_text = (
+                            f"Ocean ({no[woi]} — inside halo px; "
+                            "counts toward pixels_offshore in CSV)"
+                        )
+                    elif bool(oc[iy, ix]):
+                        owner_text = (
+                            "Ocean (sea colour, outside halo px — "
+                            "not in any nation's pixels_offshore)"
+                        )
+
+            # Fallback: EEZ overlay cache (may use different px / Match CSV land mode)
+            if not csv_ok or owner_text == "Unclaimed / Unknown":
+                land_masks = getattr(self, "_eez_land_masks", None)
+                offshore_owner = getattr(self, "_eez_offshore_owner", None)
+                nation_order = getattr(self, "_eez_nation_order", None)
+                if land_masks:
+                    for name, mask in land_masks.items():
+                        if mask[iy, ix]:
+                            owner_text = name
+                            break
+                    if owner_text == "Unclaimed / Unknown" and offshore_owner is not None:
+                        wo = int(offshore_owner[iy, ix])
+                        if wo >= 0 and nation_order and wo < len(nation_order):
+                            owner_text = f"Ocean ({nation_order[wo]} EEZ preview)"
+                        elif self._cfg and self._cfg.get("ocean_colors"):
                             for o_rgb in self._cfg["ocean_colors"]:
                                 if tuple(o_rgb) == rgb:
                                     owner_text = "Ocean (Unclaimed)"
                                     break
-            
-            # 2. Fallback to simple RGB check if EEZs haven't computed yet
+
+            # Fallback to simple RGB check if EEZs haven't computed yet
             if owner_text == "Unclaimed / Unknown" and self._cfg and "nations" in self._cfg:
                 # First check for exact matches
                 for name, col_or_cols in self._cfg["nations"].items():

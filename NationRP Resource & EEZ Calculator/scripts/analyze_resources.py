@@ -6,9 +6,10 @@ Counts resource-colour pixels per nation on:
   - national land (political fill colours, excluding ocean / ignore list)
   - optional map title/label pixels (see nation_title_colors) merged into the
     nearest nation's land so halos and land resource totals are not "cut out"
-  - offshore halo: water pixels (ocean colour) within --halo-km of that nation's
-    effective land, assigned by nearest-distance-to-coast among all nations
-    within halo range (ties: earlier entry in YAML `nations:` wins).
+  - offshore halo: water pixels (ocean colour) within a Euclidean **image-space**
+    radius (**offshore_halo_px** in config, or ``--halo-px`` / ``--halo-km`` on the CLI)
+    of that nation's effective land, assigned by nearest-distance-to-coast among
+    all nations within the band (ties: earlier entry in YAML ``nations:`` wins).
 
 When two or more nations share the **same RGB** in `nations:`, one mask is built
 for that colour and split: optional `duplicate_fill_splits` seeds, otherwise
@@ -29,7 +30,7 @@ Requires political and resource images with identical width × height.
 Optional ``deposit_sampler_zones`` in ``config.yaml`` (lasso polygons in image pixels):
 when present, ``analyze_resources`` also writes ``deposit_zones_attribution.json`` next to
 the CSV/JSON outputs, with per-zone ``eez_offshore_px``, ``beyond_halo_ocean_px``, and
-``on_land_px`` for econ/reporting (same halo rule as ``--halo-km`` / ``km_per_pixel``).
+``on_land_px`` for econ/reporting (same halo rule as the main CSV run).
 """
 
 from __future__ import annotations
@@ -717,11 +718,38 @@ def add_global_commodity_pct(rows: list[dict]) -> None:
         )
 
 
+def resolve_offshore_halo_px(
+    cfg: dict[str, Any],
+    halo_km_cli: float | None,
+    halo_px_cli: float | None,
+) -> float:
+    """
+    Image-space halo radius in pixels for ``assign_offshore``.
+
+    Precedence: ``halo_px_cli`` > ``halo_km_cli`` > ``offshore_halo_px`` in cfg >
+    ``offshore_halo_km`` in cfg > legacy default **80 km** at ``km_per_pixel``.
+    """
+    km_per_px = float(cfg.get("km_per_pixel", 6.0))
+    if km_per_px <= 0:
+        raise SystemExit("config km_per_pixel must be positive")
+    if halo_px_cli is not None and float(halo_px_cli) > 0:
+        return float(halo_px_cli)
+    if halo_km_cli is not None and float(halo_km_cli) > 0:
+        return float(halo_km_cli) / km_per_px
+    cpx = cfg.get("offshore_halo_px")
+    if cpx is not None and float(cpx) > 0:
+        return float(cpx)
+    ckm = cfg.get("offshore_halo_km")
+    if ckm is not None and float(ckm) > 0:
+        return float(ckm) / km_per_px
+    return 80.0 / km_per_px
+
+
 def run(
     political_rgb: np.ndarray,
     resource_rgb: np.ndarray,
     cfg: dict,
-    halo_km: float,
+    halo_px: float,
     progress: Callable[[str], None] | None = None,
     show_progress: bool = True,
 ) -> list[dict]:
@@ -730,7 +758,9 @@ def run(
             progress(msg)
 
     km_per_px = float(cfg.get("km_per_pixel", 6.0))
-    halo_px = float(halo_km) / km_per_px
+    halo_px = float(halo_px)
+    if halo_px <= 0:
+        raise SystemExit("offshore halo radius (px) must be positive")
 
     p("Building nation land masks (incl. duplicate-fill splits)...")
     nation_masks, _, _, nation_order, ocean = nation_masks_and_context(
@@ -833,8 +863,10 @@ def analyze_and_write_outputs(
     political: Path,
     resources: Path,
     config: Path,
-    halo_km: float,
     out_csv: Path,
+    *,
+    halo_km: float | None = None,
+    halo_px: float | None = None,
     out_json: Path | None = None,
     nations_yaml: Path | None = None,
     progress: Callable[[str], None] | None = None,
@@ -872,12 +904,13 @@ def analyze_and_write_outputs(
             f"other keys from {config}"
         )
 
+    hp = resolve_offshore_halo_px(cfg, halo_km, halo_px)
     rows = list(
         run(
             pol,
             res,
             cfg,
-            halo_km,
+            hp,
             prog if show_progress else None,
             show_progress=show_progress,
         )
@@ -899,14 +932,12 @@ def analyze_and_write_outputs(
     out_base = out_json if out_json is not None else out_csv
     zones_raw = cfg.get("deposit_sampler_zones")
     if isinstance(zones_raw, list) and zones_raw:
-        km_per_px = float(cfg.get("km_per_pixel", 6.0))
-        halo_px = float(halo_km) / km_per_px
         zones_copy = deepcopy(zones_raw)
         try:
             attribute_deposit_sampler_zones(
                 pol,
                 cfg,
-                halo_px,
+                hp,
                 zones_copy,
                 use_effective_land_for_halo=True,
             )
@@ -939,7 +970,18 @@ def main() -> None:
             "for this run only — config.yaml on disk is unchanged"
         ),
     )
-    ap.add_argument("--halo-km", type=float, required=True, help="offshore radius km")
+    ap.add_argument(
+        "--halo-km",
+        type=float,
+        default=None,
+        help="offshore radius in km (converted with km_per_pixel); optional if config sets offshore_halo_px / offshore_halo_km",
+    )
+    ap.add_argument(
+        "--halo-px",
+        type=float,
+        default=None,
+        help="offshore radius in image pixels (overrides --halo-km and config halo keys when set)",
+    )
     ap.add_argument("--out", type=Path, required=True, help="output CSV")
     ap.add_argument("--json", type=Path, default=None)
     ap.add_argument(
@@ -960,8 +1002,9 @@ def main() -> None:
             args.political,
             args.resources,
             args.config,
-            args.halo_km,
             args.out,
+            halo_km=args.halo_km,
+            halo_px=args.halo_px,
             out_json=args.json,
             nations_yaml=args.nations_yaml,
             progress=progress if use_progress else None,

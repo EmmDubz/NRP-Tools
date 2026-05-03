@@ -4,6 +4,11 @@
 # One pixel = 6 km × 6 km  →  area per pixel = 36 km²
 km_per_pixel: 6.0
 
+# Offshore EEZ-style band: radius in image pixels (same as tuner "Halo radius (px)").
+# Optional: offshore_halo_km (km) is converted with km_per_pixel if px is absent.
+# CLI --halo-px / --halo-km override config. If nothing is set, analysis defaults to 80 km.
+offshore_halo_px: 13
+
 # Political / ignore layers: tolerance per RGB channel (anti-alias, JPEG)
 color_tolerance: 12
 

@@ -33,7 +33,7 @@ echo   Config: config.yaml
 echo   Output: output\results.csv , output\results.json
 echo.
 
-python scripts\analyze_resources.py --political "maps\Political Map.png" --resources "maps\Resource Map aligned.png" --config config.yaml --halo-km 80 --out output\results.csv --json output\results.json
+python scripts\analyze_resources.py --political "maps\Political Map.png" --resources "maps\Resource Map aligned.png" --config config.yaml --out output\results.csv --json output\results.json
 
 if errorlevel 1 (
   echo.

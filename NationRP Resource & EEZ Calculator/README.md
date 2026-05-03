@@ -1,6 +1,6 @@
 # NationRP Resource & EEZ Calculator
 
-**Political map + resource map overlay:** classify land by nation from fill colours, classify **commodities** on the resource layer using **CIELAB ΔE**, and compute an **offshore halo** (EEZ-style band in km) so ocean pixels are attributed to nations **without** painting halos over foreign land. Outputs are **CSV / JSON** (pixel counts and km²) plus optional **markdown** summaries.
+**Political map + resource map overlay:** classify land by nation from fill colours, classify **commodities** on the resource layer using **CIELAB ΔE**, and compute an **offshore halo** (EEZ-style band in image pixels, optional km via config/CLI) so ocean pixels are attributed to nations **without** painting halos over foreign land. Outputs are **CSV / JSON** (pixel counts and km²) plus optional **markdown** summaries.
 
 | | |
 |--|--|
@@ -72,11 +72,11 @@ The resource map uses **smooth shading** — one hex code is not enough.
 - **Eyedropper + anchors:** sidebar **Map clicks: Eyedropper → list** — click the map (deposit tint or **legend swatch** on the PNG). **Apply anchors → memory** writes the current commodity’s list into in-memory `resource_legend`. **Save Everything** and **Run full analysis** also auto-merge pending anchor lists for *every* commodity you opened in this session (so oil + gas edits both land in `config.yaml` even if you only clicked Apply once). The **Commodity max ΔE** field applies only to the **selected** commodity; switching commodities without clearing it no longer overwrites the other’s threshold.
 - **Merge nations from YAML** (File menu): loads `nation_colours_fragment.yaml` (or any YAML with `nations:`) into the **in-memory** `config.yaml` — same keys the batch can take via `--nations-yaml`, but merged here so the tuner sees your picker output without hand-editing `config.yaml`. Also applies `color_tolerance`, and if present `ocean_colors`, `ignore_land_colors`, `duplicate_fill_splits` from the fragment (overwrites those keys).
 - **Save full config** / **Run pixel analysis** / **Colour picker** live under the **File** and **Workflow** menus; analysis saves to the path from **Open config** first, then runs the same pipeline as `analyze_resources.py` into **`output/`** (background thread + log lines prefixed `[analyze]`).
-- **EEZ / offshore halo preview (sidebar):** tinted ocean assigned to each nation using **`assign_offshore`** (same routine as `analyze_resources`). By default **solid nation fills only** — map lettering matched by `nation_title_colors` is **not** used as land, so labels like “Septenez Sea” no longer grow fake EEZ blobs. Turn on **Match CSV** to include title attach (then matches batch/CSV halos; sea names near coast can inflate bands). Halo uses a **smooth alpha falloff** from the coast (not chunky discrete rings). Computation runs in a **background thread** with a **progress bar** so the window should not go “Not responding”. Set **Halo radius (px)** to match your batch: **`--halo-km` = px × `km_per_pixel`**.
+- **EEZ / offshore halo preview (sidebar):** wire on ocean assigned to each nation using **`assign_offshore`** (same routine and **same pixel radius** as CSV / JSON). By default **solid nation fills only** for the drawing — map lettering matched by `nation_title_colors` is **not** used as land, so labels like “Septenez Sea” no longer grow fake EEZ blobs. Turn on **Match CSV** to include title attach in the overlay drawing (CSV always uses effective land). Computation runs in a **background thread** with a **progress bar**. **Halo radius (px)** is written to **`offshore_halo_px`** when you save config or run analysis (headless batch reads it from `config.yaml`).
 - **From scratch:** **File → New minimal config** (stub in memory) → **Add commodity…** → Eyedropper samples → Apply → Save fragment → merge → run analysis. Or start from **File → Open config** and edit anchors the same way.
 - **Calibration wizard (sidebar):** **Start wizard** walks **Step 1** — every commodity in `resource_legend` in order (eyedropper on, **Next** saves anchors); **Step 2** — tune global max ΔE and per-commodity ΔE with Mask/ΔE views; **Step 3** — optional lasso for blob/hint logging; **Step 4** — save YAML fragment and merge. **Cancel wizard** exits guided mode. Works for **new** or **existing** configs (existing: you re-sample/replace anchors per commodity as you go).
 
-**Offshore beyond the halo:** analysis only attributes **water** inside **`--halo-km`** of your land. Deposits in basins farther out (e.g. narrative UKGS volumes “just beyond” fill) stay **unassigned** to you until halo/EEZ rules expand or manual attribution is added — the tuner still lets you **see** and **sample** those pixels.
+**Offshore beyond the halo:** analysis only attributes **water** inside **`offshore_halo_px`** image pixels of your land (same band as the EEZ overlay). Deposits farther out stay **unassigned** until you raise **`offshore_halo_px`** (or pass **`--halo-px`** / **`--halo-km`** on the CLI) — the tuner still lets you **see** and **sample** those pixels.
 
 **How you can help:** lasso obvious **copper** / **precious** patches and share the logged anchor lines (or screenshots + RGB); paste into `config.yaml` and re-run `analyze_resources.py`.
 
@@ -98,9 +98,10 @@ By default the picker writes a small file (`nation_colours_fragment.yaml`). You 
 
 ### EEZ preview vs `analyze_resources` CSV
 
-- **CSV / JSON** use **effective** land masks = solid fills **plus** `nation_title_colors` merged near territory (`effective_nation_masks`).
-- **Tuner default (Match CSV off)** uses **solid fills only** for the EEZ preview so typography and sea names are not treated as territory (fixes spurious purple “EEZ” around labels).
-- Turn **Match CSV** on when you need **pixel parity** with the batch halos.
+- **One band:** **`offshore_halo_px`** in `config.yaml` (sidebar **Halo radius (px)**; saved on **Save** / before **Run analysis**) defines the Euclidean radius in image space for both the **EEZ overlay** and **`pixels_offshore`** in CSV/JSON. Optional **`offshore_halo_km`** or CLI **`--halo-km`** / **`--halo-px`** override; if nothing is set, analysis defaults to **80 km** at `km_per_pixel`.
+- **CSV / JSON** use **effective** land (solid fills plus `nation_title_colors` attach) for halo math; the **political eyedropper** uses the same effective land + **`offshore_halo_px`** so labels match export.
+- **Match CSV off** (default) uses **solid fills only** for the EEZ *wire drawing* so typography is not treated as territory; attribution / CSV still use **effective** land.
+- Turn **Match CSV** on when you need **pixel parity** between the overlay *drawing* and the effective land mask.
 
 ### Troubleshooting EEZ preview
 
@@ -150,7 +151,7 @@ pip install -r scripts/requirements.txt
 cp config.example.yaml config.yaml
 # Add aligned PNGs under maps/ and edit config.yaml (paths, halo, nations, etc.)
 
-python scripts/analyze_resources.py --political "maps/Political Map.png" --resources "maps/Resource Map aligned.png" --config config.yaml --halo-km 80 --out output/results.csv --json output/results.json
+python scripts/analyze_resources.py --political "maps/Political Map.png" --resources "maps/Resource Map aligned.png" --config config.yaml --out output/results.csv --json output/results.json
 python scripts/build_commodity_view_md.py
 # On Windows you can instead double-click 2_Run_Analysis.bat after config and maps are ready
 ```
@@ -162,7 +163,8 @@ python scripts/build_commodity_view_md.py
 | `--political` | Political map image (PNG recommended) |
 | `--resources` | Resource map (same dimensions) |
 | `--config` | YAML config path |
-| `--halo-km` | Offshore halo radius in **km** (converted with `km_per_pixel`) |
+| `--halo-px` | Offshore halo radius in **image pixels** (overrides config and `--halo-km`) |
+| `--halo-km` | Offshore halo radius in **km** (converted with `km_per_pixel`; optional if `offshore_halo_px` / `offshore_halo_km` is in config) |
 | `--out` | Output CSV path |
 | `--json` | Optional second export path for JSON |
 | `--no-progress` | Disable tqdm + stderr step prints |
