@@ -574,7 +574,13 @@ async def clear_reminders(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(f"✅ Cleared **{count}** reminders.", ephemeral=True)
 
-# --- RP time admin (config role + UI) ---
+# --- Admin slash group (/admin …) ---
+admin_group = app_commands.Group(
+    name="admin",
+    description="Admin-only tools: resolutions, activity, RP time, and debug.",
+)
+
+# --- RP time admin (config role + UI; command is /admin rptimemanage) ---
 class AnchorModal(discord.ui.Modal, title="IRL / RP anchors (UTC)"):
     irl_input = discord.ui.TextInput(
         label="IRL anchor instant (UTC)",
@@ -605,7 +611,7 @@ class AnchorModal(discord.ui.Modal, title="IRL / RP anchors (UTC)"):
             }
         )
         await interaction.response.send_message(
-            "Anchor pair saved. `/rptimemanage` again to refresh the summary.",
+            "Anchor pair saved. Run `/admin rptimemanage` again to refresh the summary.",
             ephemeral=True,
         )
 
@@ -651,7 +657,7 @@ class SpeedModal(discord.ui.Modal, title="Dilation & IRL anchor sync"):
             return
         save_config(updates)
         await interaction.response.send_message(
-            "RP time settings saved. `/rptimemanage` again to refresh the summary.",
+            "RP time settings saved. Run `/admin rptimemanage` again to refresh the summary.",
             ephemeral=True,
         )
 
@@ -669,9 +675,9 @@ class RpTimeManageView(discord.ui.View):
         await interaction.response.send_modal(SpeedModal())
 
 
-@bot.tree.command(name="rptimemanage", description="Admin: view/edit global RP clock (anchors & dilation).")
+@admin_group.command(name="rptimemanage", description="View/edit global RP clock (anchors & dilation).")
 @is_admin()
-async def rp_time_manage(interaction: discord.Interaction):
+async def admin_rp_time_manage(interaction: discord.Interaction):
     if not interaction.guild:
         await interaction.response.send_message("Use this command in a server.", ephemeral=True)
         return
@@ -679,9 +685,6 @@ async def rp_time_manage(interaction: discord.Interaction):
         embed=rp_time_admin_embed(), view=RpTimeManageView(), ephemeral=True
     )
 
-
-# --- Admin Group ---
-admin_group = app_commands.Group(name="admin", description="Admin-only commands for managing the bot.")
 
 # --- Bot Commands ---
 
@@ -1411,7 +1414,14 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="4️⃣ Data", value=
                     "`/mynations` - See your list.\n"
                     "`/votingrecord [nation]` - See a nation's history.", inline=False)
-    
+
+    embed.add_field(
+        name="5️⃣ Admin (configured role)",
+        value="`/admin` subcommands: `close`, `deregister`, `transfer`, `checkactivity`, `debug`, "
+        "**`rptimemanage`** (RP time / anchors / dilation).",
+        inline=False,
+    )
+
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # Helper for the amend check (Put this near is_admin or at top)

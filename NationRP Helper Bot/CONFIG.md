@@ -21,7 +21,7 @@ Values are read from **`config.json`** in the same directory as **`bot.py`**. In
 | `proposals_channel_id` | If set and valid, `/propose` posts there; otherwise the current channel. |
 | `results_channel_id` | Where concluded votes are posted; falls back to the proposal’s channel. |
 | `ping_role_id` | Role mentioned on new proposals and on results. |
-| `admin_role_id` | Role allowed to use `/admin` and `/rptimemanage`. |
+| `admin_role_id` | Role allowed to use all **`/admin`** subcommands (including **`rptimemanage`**). |
 | `comrade_role_id` | If set, only members with this role may `/propose`. |
 | `date_channel_id` | If set, this channel is renamed on a schedule to match `date_channel_name_template`. |
 | `activity_check_categories` | Category IDs scanned by `/admin checkactivity`. |

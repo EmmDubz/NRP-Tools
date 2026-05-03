@@ -50,7 +50,7 @@ Slash commands are synced when the bot connects.
 |------|--------|
 | **RP time** | Derived from two UTC anchors and `real_days_per_rp_year`; see **CONFIG.md** for the formula. |
 | **`/time`** | Anyone can see the current RP date/time. |
-| **`/rptimemanage`** | Users with the configured **admin** role get a panel to edit anchors and dilation; optional **`SYNC`** aligns the IRL anchor to “now” without jumping the RP clock. |
+| **`/admin rptimemanage`** | Same admin role: panel to edit RP clock anchors and dilation; optional **`SYNC`** aligns the IRL anchor to “now” without jumping the RP readout. |
 | **HTTP API** | If **`API_PORT`** in `.env` is a positive integer, **`GET /api/rp-time`** is public JSON. Reminder routes require **`Authorization: Bearer <API_SECRET>`**. Use a free port (avoid conflicting with existing services on the host). |
 
 ## Branding
