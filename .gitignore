@@ -1,0 +1,44 @@
+# --- Secrets & local env (never commit) ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# --- Local / generated data ---
+*.db
+*.sqlite3
+
+# --- App config (use *example* files in repo only) ---
+NationRP Helper Bot/config.json
+resource_overlay/config.yaml
+
+# --- resource_overlay generated output ---
+resource_overlay/output/
+
+# --- Editors & OS ---
+.idea/
+.vscode/
+*.swp
+*~
+Thumbs.db
+.DS_Store
+Desktop.ini

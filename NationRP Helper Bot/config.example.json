@@ -1,0 +1,20 @@
+{
+  "short_name": "My RP Server",
+  "resolution_prefix": "RES",
+  "proposer_role_label": "Proposer",
+  "date_channel_name_template": "Current Date - {month_year}",
+  "rp_date_format": "%d %B %Y",
+  "rp_time_format": "%H:%M",
+  "database_path": "fns_bot.db",
+
+  "proposals_channel_id": 0,
+  "results_channel_id": 0,
+  "ping_role_id": 0,
+  "admin_role_id": 0,
+  "comrade_role_id": 0,
+  "rp_anchor_real_ms": 1704067200000,
+  "rp_anchor_game_ms": 978307200000,
+  "real_days_per_rp_year": 40,
+  "date_channel_id": 0,
+  "activity_check_categories": []
+}

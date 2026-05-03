@@ -1,0 +1,64 @@
+# Example config — copy to config.yaml and edit colours from your political + resource maps.
+# Images must be the SAME pixel dimensions (stackable overlay).
+
+# One pixel = 6 km × 6 km  →  area per pixel = 36 km²
+km_per_pixel: 6.0
+
+# Political / ignore layers: tolerance per RGB channel (anti-alias, JPEG)
+color_tolerance: 12
+
+# Default max ΔE (CIELAB, CIE76) for resource pixels vs ANY anchor of that commodity.
+# Gradients / shading: same deposit type = similar Lab colour; raise to ~22–28 if needed.
+# Too high: different legend colours merge; too low: gaps inside one deposit.
+resource_max_delta_e: 20
+
+# Example: exclude open-water background on the *resource* raster from commodity masks.
+resource_exclude_colors:
+  - [114, 200, 229]
+resource_exclude_tolerance: 16
+
+ocean_colors:
+  - [173, 216, 230]
+  - [135, 206, 235]
+
+ignore_land_colors:
+  - [255, 255, 255]
+  - [248, 248, 248]
+
+# Nation NAME label pixels (often solid black / white) that overwrite fill colour.
+# Matched like ocean/nations; each title pixel within title_land_attach_px of solid
+# land is merged into the nearest nation so land + offshore halo are not "cut out".
+nation_title_colors:
+  - [0, 0, 0]
+  # - [255, 255, 255]
+title_land_attach_px: 8
+
+nations:
+  "Rahva": [65, 105, 225]
+  "Khaldea": [75, 0, 130]
+  # ...
+
+# Resource legend: each entry is EITHER
+#   - a single RGB:  [r, g, b]
+#   - several anchors (sample light + dark parts of the gradient): [[r,g,b], [r,g,b], ...]
+#   - a dict:  anchors: [...]   and optional max_delta_e: 24   (per-commodity threshold)
+resource_legend:
+  oil:
+    anchors:
+      - [80, 55, 35]
+      - [110, 70, 40]
+      - [140, 95, 60]
+    max_delta_e: 22
+  natural_gas:
+    anchors:
+      - [0, 120, 120]
+      - [0, 160, 170]
+    max_delta_e: 18
+  coal: [20, 20, 20]
+  iron:
+    - [200, 90, 90]
+    - [235, 110, 110]
+  copper: [255, 140, 0]
+  precious_metals: [128, 128, 128]
+  uranium: [144, 238, 144]
+  rare_earths: [200, 0, 200]

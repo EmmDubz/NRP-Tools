@@ -1,0 +1,185 @@
+# Fragment — merge nations (and color_tolerance if needed) into config.yaml.
+# This file is not loaded automatically; copy values into your real config.
+# color_tolerance: 3
+
+nations:
+  Ardland:
+  - 198
+  - 77
+  - 47
+  Ascoobis:
+  - 255
+  - 240
+  - 0
+  Astravica:
+  - 31
+  - 137
+  - 45
+  Aurilandia:
+  - 1
+  - 20
+  - 128
+  Auwera:
+  - 0
+  - 187
+  - 187
+  Caspazon:
+  - 33
+  - 42
+  - 94
+  Diamanshia:
+  - 0
+  - 118
+  - 169
+  Elberethdor:
+  - 50
+  - 105
+  - 168
+  Frobyia:
+  - 107
+  - 193
+  - 195
+  Great Septene:
+  - 0
+  - 35
+  - 102
+  Greater Hellenic League:
+  - 0
+  - 30
+  - 215
+  Inevia:
+  - 204
+  - 92
+  - 83
+  Intisar:
+  - 28
+  - 33
+  - 104
+  Karaskia:
+  - 119
+  - 216
+  - 78
+  Khaldea:
+  - 116
+  - 61
+  - 144
+  Kingdom of Zvoda:
+  - 239
+  - 154
+  - 154
+  Krovnik Confederacy:
+  - 71
+  - 28
+  - 28
+  Lettonia:
+  - 202
+  - 137
+  - 255
+  Lhai:
+  - 255
+  - 37
+  - 0
+  Lisman Co.:
+  - 120
+  - 81
+  - 169
+  Miserique:
+  - 0
+  - 21
+  - 98
+  Mizlecia:
+  - 120
+  - 81
+  - 169
+  Moimiria:
+  - 112
+  - 41
+  - 99
+  New Skandor:
+  - 113
+  - 42
+  - 99
+  Nohol:
+  - 181
+  - 46
+  - 38
+  Nuevo Tortuguero:
+  - 42
+  - 176
+  - 34
+  Obets:
+  - 0
+  - 115
+  - 147
+  Oklo:
+  - 226
+  - 228
+  - 60
+  Papal Dominions:
+  - 255
+  - 255
+  - 0
+  Rahva:
+  - 1
+  - 83
+  - 147
+  Republic of Zvoda:
+  - 164
+  - 43
+  - 44
+  Romort:
+  - 79
+  - 79
+  - 224
+  Serikai:
+  - 212
+  - 175
+  - 55
+  Shengu:
+  - 72
+  - 17
+  - 102
+  Sloughington:
+  - 133
+  - 25
+  - 162
+  Sonadesh:
+  - 64
+  - 228
+  - 60
+  Sordreich:
+  - 153
+  - 142
+  - 83
+  Stachelland:
+  - 255
+  - 239
+  - 163
+  Tennemagma:
+  - 220
+  - 150
+  - 41
+  Tunibia:
+  - 0
+  - 85
+  - 10
+  United Arab Republics:
+  - 30
+  - 84
+  - 0
+  Urdasia:
+  - 255
+  - 192
+  - 0
+  Veridian:
+  - 211
+  - 175
+  - 55
+  Vuoristoinen:
+  - 138
+  - 138
+  - 138
+  Yuktobania:
+  - 151
+  - 234
+  - 133

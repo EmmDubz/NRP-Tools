@@ -1,0 +1,52 @@
+# Fragment — merge `resource_legend` into config.yaml (replace block or per-key).
+# Does not write nations:, ocean_colors:, halo, etc.
+
+resource_legend:
+  oil:
+    anchors:
+    - - 113
+      - 55
+      - 36
+    max_delta_e: 24.0
+  natural_gas:
+    anchors:
+    - - 41
+      - 170
+      - 159
+    max_delta_e: 18.0
+  coal:
+    anchors:
+    - - 48
+      - 46
+      - 46
+    max_delta_e: 18.0
+  copper:
+    anchors:
+    - - 229
+      - 157
+      - 25
+    max_delta_e: 24.0
+  precious_metals:
+    anchors:
+    - - 155
+      - 155
+      - 155
+    max_delta_e: 20.0
+  iron:
+    anchors:
+    - - 216
+      - 123
+      - 115
+    max_delta_e: 22.0
+  uranium:
+    anchors:
+    - - 190
+      - 229
+      - 78
+    max_delta_e: 22.0
+  rare_earths:
+    anchors:
+    - - 41
+      - 170
+      - 159
+    max_delta_e: 22.0
