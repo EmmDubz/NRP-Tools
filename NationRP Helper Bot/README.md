@@ -6,7 +6,7 @@ This folder is usually used as part of the **NRP-Tools** monorepo (see the paren
 
 ## Prerequisites
 
-- **Python 3.10+**
+- **Python 3.9+** (3.10+ recommended; the bot uses postponed annotations so `3.9` works on typical hosts)
 - A **Discord application** with a bot user and token ([Discord Developer Portal](https://discord.com/developers/applications))
 - **Privileged intents** as needed: the bot uses the **Server Members** intent for role-based checks. Enable it in the portal and when generating the invite URL.
 
