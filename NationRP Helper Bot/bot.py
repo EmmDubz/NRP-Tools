@@ -85,8 +85,13 @@ def save_config(updates: dict) -> None:
     invalidate_config_cache()
 
 
-def get_db_file():
-    return load_config().get("database_path", "fns_bot.db")
+def get_db_file() -> str:
+    """SQLite path: absolute paths as-is; relative paths are next to config.json."""
+    cfg = load_config()
+    name = cfg.get("database_path", "fns_bot.db")
+    if os.path.isabs(name):
+        return name
+    return os.path.join(os.path.dirname(CONFIG_PATH), name)
 
 
 def branding_from_config(config: dict) -> dict:
@@ -161,8 +166,8 @@ def is_admin():
         config = load_config()
         admin_role_id = config.get("admin_role_id")
         if not admin_role_id:
-            return False 
-        
+            return False
+
         if not isinstance(interaction.user, discord.Member):
             return False
         # Check if the user's roles include the admin role
@@ -170,11 +175,35 @@ def is_admin():
     return app_commands.check(predicate)
 
 # --- Database Initialization ---
+def _resolutions_column_names(cur: sqlite3.Cursor) -> set[str]:
+    cur.execute("PRAGMA table_info(resolutions)")
+    return {row[1] for row in cur.fetchall()}
+
+
+def _ensure_resolutions_schema(cur: sqlite3.Cursor) -> None:
+    """Add columns introduced after early installs (replaces old one-off migrate scripts)."""
+    cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='resolutions' LIMIT 1"
+    )
+    if cur.fetchone() is None:
+        return
+    cols = _resolutions_column_names(cur)
+    if "proposer_nation_name" not in cols:
+        cur.execute("ALTER TABLE resolutions ADD COLUMN proposer_nation_name TEXT")
+    if "was_force_closed" not in cols:
+        cur.execute(
+            "ALTER TABLE resolutions ADD COLUMN was_force_closed INTEGER NOT NULL DEFAULT 0"
+        )
+    if "result_status" not in cols:
+        cur.execute("ALTER TABLE resolutions ADD COLUMN result_status TEXT")
+
+
 def initialize_database():
-    """Creates the database and tables if they don't exist."""
+    """Creates the database and tables if they don't exist; upgrades older schemas in place."""
     dbf = get_db_file()
     with sqlite3.connect(dbf) as con:
         cur = con.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
         # Nations Table
         cur.execute('''
             CREATE TABLE IF NOT EXISTS nations (
@@ -183,9 +212,7 @@ def initialize_database():
                 PRIMARY KEY (user_id, nation_name)
             )
         ''')
-        # Resolutions Table
-        # Note: 'original_channel_id', 'proposer_nation_name', and 'was_force_closed' are included here
-        # for new installs. Existing DBs rely on the migrations you already ran.
+        # Resolutions (full schema for new installs)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS resolutions (
                 resolution_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -196,9 +223,11 @@ def initialize_database():
                 deadline_iso TEXT NOT NULL,
                 original_channel_id INTEGER NOT NULL,
                 is_active INTEGER NOT NULL DEFAULT 1,
-                was_force_closed INTEGER NOT NULL DEFAULT 0
+                was_force_closed INTEGER NOT NULL DEFAULT 0,
+                result_status TEXT
             )
         ''')
+        _ensure_resolutions_schema(cur)
         # Votes Table
         cur.execute('''
             CREATE TABLE IF NOT EXISTS votes (

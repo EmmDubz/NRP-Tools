@@ -1,6 +1,6 @@
 # Configuration reference (`config.json`)
 
-Values are read from **`config.json`** in the same directory as **`bot.py`**. Integer IDs are Discord snowflakes. File paths such as **`database_path`** are relative to the **process working directory** unless given as an absolute path.
+Values are read from **`config.json`** in the same directory as **`bot.py`**. Integer IDs are Discord snowflakes. **`database_path`**: if relative, it is resolved against the **directory containing `config.json`** (same folder as `bot.py`); absolute paths are used as given.
 
 ## Branding and display
 
@@ -12,7 +12,7 @@ Values are read from **`config.json`** in the same directory as **`bot.py`**. In
 | `date_channel_name_template` | `Current Date - {month_year}` | Pattern for renaming the configured date channel. Placeholder: `{month_year}` (e.g. `June 2005`). |
 | `rp_date_format` | `%d %B %Y` | `strftime` pattern for `/time` date. |
 | `rp_time_format` | `%H:%M` | `strftime` pattern for `/time` time. |
-| `database_path` | `fns_bot.db` | SQLite database for nations, resolutions, votes, reminders. |
+| `database_path` | `fns_bot.db` | SQLite database for nations, resolutions, votes, reminders (relative → next to `config.json`). |
 
 ## Discord routing
 

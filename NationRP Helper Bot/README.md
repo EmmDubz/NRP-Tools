@@ -59,7 +59,7 @@ Display strings (server short name, resolution prefix, proposer role label, date
 
 ## Database
 
-SQLite file name defaults to **`fns_bot.db`**; override with **`database_path`** in `config.json`. If you upgrade from an older schema, one-off scripts **`migrate.py`** and **`migrate2.py`** may still be useful; new installs rely on the tables created at startup.
+SQLite defaults to **`fns_bot.db`**. Set **`database_path`** in `config.json` to change the file name; relative paths are resolved **next to `config.json`** (the bot folder), not the shell’s current directory. On first startup the bot creates tables and **adds any missing columns** on older databases automatically.
 
 ## License
 

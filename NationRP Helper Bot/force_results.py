@@ -1,14 +1,31 @@
-import sqlite3
 import datetime
+import json
+import os
+import sqlite3
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- CONFIGURATION ---
-DB_FILE = 'fns_bot.db'
 RES_ID = 1  # <--- REPLACE THIS WITH YOUR STUCK RESOLUTION ID
+
+
+def _db_path() -> str:
+    cfg_path = os.path.join(SCRIPT_DIR, "config.json")
+    try:
+        with open(cfg_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        cfg = {}
+    name = cfg.get("database_path", "fns_bot.db")
+    if os.path.isabs(name):
+        return name
+    return os.path.join(SCRIPT_DIR, name)
+
 
 def force_revive():
     print(f"Attempting to revive Resolution ID {RES_ID}...")
-    
-    con = sqlite3.connect(DB_FILE)
+
+    con = sqlite3.connect(_db_path())
     cur = con.cursor()
     
     # Check if it exists first
