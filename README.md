@@ -27,11 +27,3 @@ Public utilities for **nation-style roleplay** and related map workflows. This r
 2. Open the folder for the tool you need and follow **that folder’s `README.md`** end to end (virtual environment, `pip install`, copying `config.example.*` → local config, and `.env.example` → `.env` for the bot).
 
 3. **Do not commit secrets or machine-local files.** The root [`.gitignore`](.gitignore) excludes common cases (`.env`, local `config.json` / `config.yaml`, databases, Python caches, **`NationRP Resource & EEZ Calculator/output/`**). Keeping `.gitignore` in the repository is **normal and recommended** so every clone behaves the same.
-
-## Contributing or forking
-
-Use issues or pull requests on GitHub if you extend a tool and want to share changes. Fork the repository if you are adapting it for another community.
-
-## License
-
-Unless otherwise noted in a subfolder, add or choose a **LICENSE** file at the repository root when you publish; downstream users then know what they may do with the code.
