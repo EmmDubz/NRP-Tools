@@ -3,7 +3,7 @@
 Deposit / commodity colour tuner — preview resource-map classification and sample lasso regions.
 
 Load config.yaml: reads resource_legend, resource_max_delta_e, resource_exclude_*, and
-ocean_colors (no images). Refreshes the commodity list, rebuilds the strict ocean mask
+ocean_colors (no images). Refreshes the commodity list, rebuilds the political ocean-colour mask
 if a political PNG is already loaded, and clears classification caches so previews match the file.
 
 Heavy work (full commodity classification, LAB, per-commodity ΔE distance field) is cached;
@@ -61,16 +61,14 @@ _LASSO_CC_STRUCT = np.ones((3, 3), dtype=bool)  # 8-connected deposit blobs
 _PREVIEW_MODE_ROWS: tuple[tuple[str, str], ...] = (
     ("resource", "Resource map (raw)"),
     ("mask_wb", "Mask — commodity (white/black)"),
-    ("mask_wb_water", "Mask — commodity (+ offshore on water)"),
     ("pitch_black", "Hits only (black)"),
-    ("pitch_water", "Hits only (+ offshore on water)"),
     ("grey", "Luminance"),
     ("delta_e", "ΔE heat"),
     ("diag_spectral", "Diagnostic — void + oil/gas tie hatch"),
 )
 # Previews that need a selected commodity in resource_legend
 _PREVIEW_COMMODITY_MODES: frozenset[str] = frozenset(
-    {"delta_e", "mask_wb", "pitch_black", "mask_wb_water", "pitch_water"}
+    {"delta_e", "mask_wb", "pitch_black"}
 )
 
 
@@ -1000,7 +998,7 @@ class DepositTunerApp(tk.Tk):
         )
         view_m.add_separator()
         view_m.add_checkbutton(
-            label="Strict Ocean Mask (hides sea pixels in standard mask views)",
+            label="Strict Ocean Mask (dim sea in Luminance / ΔE only)",
             variable=self.mask_ocean,
             command=self._schedule_redraw_heavy,
         )
@@ -1896,12 +1894,10 @@ class DepositTunerApp(tk.Tk):
                 self._preview_key = key2
                 return out
             cmask = masks[commodity] & ~excl
-            if ocean is not None and mode in ("mask_wb", "pitch_black"):
-                cmask &= ~ocean
-            if mode in ("mask_wb", "mask_wb_water"):
+            if mode == "mask_wb":
                 out = np.zeros_like(rgb)
                 out[cmask] = 255
-            elif mode in ("pitch_black", "pitch_water"):
+            elif mode == "pitch_black":
                 out = np.zeros_like(rgb)
                 out[cmask] = rgb[cmask]
             else:
