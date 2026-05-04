@@ -68,6 +68,7 @@ The on-screen RP clock does not jump; only the baseline for future progression c
 - `GET /api/organizations`: Summary list of all organizations.
 - `GET /api/organizations/{id}`: Full details for an organization, including member list.
 - `GET /api/voting/proposals`: History and current status of all resolution proposals.
+- `GET /api/convert?amount=100&from=NationA&to=NationB`: Currency conversion between two nations.
 
 **Authentication**: Include `Authorization: Bearer <API_SECRET>` in your request headers.
 

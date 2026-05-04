@@ -26,6 +26,7 @@ class APICog(commands.Cog):
         self.app.router.add_get('/api/organizations', self.get_organizations)
         self.app.router.add_get('/api/organizations/{id}', self.get_organization_detail)
         self.app.router.add_get('/api/voting/proposals', self.get_proposals)
+        self.app.router.add_get('/api/convert', self.convert_currency)
 
     def authenticate(self, request):
         if not self.secret: return True # If no secret set, allow all (not recommended)
@@ -115,6 +116,46 @@ class APICog(commands.Cog):
             proposals = [dict(zip(cols, r)) for r in rows]
             
         return web.json_response(proposals)
+
+    async def convert_currency(self, request):
+        if not self.authenticate(request): return web.Response(status=401, text="Unauthorized")
+        try:
+            amount = float(request.query.get('amount', 0))
+            from_nat = request.query.get('from')
+            to_nat = request.query.get('to')
+        except ValueError:
+            return web.Response(status=400, text="Invalid amount")
+            
+        if not from_nat or not to_nat:
+            return web.Response(status=400, text="Missing from/to nation")
+            
+        from_val = get_usd_value(from_nat)
+        to_val = get_usd_value(to_nat)
+        result = (amount * from_val) / to_val
+        
+        # Fetch symbols for the response
+        with sqlite3.connect(get_db_file()) as con:
+            cur = con.cursor()
+            f_row = cur.execute("SELECT currency_symbol, currency_name FROM nations WHERE nation_name = ? COLLATE NOCASE", (from_nat,)).fetchone()
+            t_row = cur.execute("SELECT currency_symbol, currency_name FROM nations WHERE nation_name = ? COLLATE NOCASE", (to_nat,)).fetchone()
+        
+        data = {
+            "amount": amount,
+            "from": {
+                "nation": from_nat,
+                "symbol": f_row[0] if f_row else "USD" if from_nat == "USD" else None,
+                "name": f_row[1] if f_row else "USD" if from_nat == "USD" else None,
+                "usd_rate": from_val
+            },
+            "to": {
+                "nation": to_nat,
+                "symbol": t_row[0] if t_row else "USD" if to_nat == "USD" else None,
+                "name": t_row[1] if t_row else "USD" if to_nat == "USD" else None,
+                "usd_rate": to_val
+            },
+            "result": result
+        }
+        return web.json_response(data)
 
     @tasks.loop(count=1)
     async def web_server(self):

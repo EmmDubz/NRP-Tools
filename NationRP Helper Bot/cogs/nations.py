@@ -126,7 +126,7 @@ class NationManagerView(discord.ui.View):
         with sqlite3.connect(get_db_file()) as con:
             row = con.execute("SELECT currency_name FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()
             source_cur_name = row[0] if row else self.selected_nation
-            targets = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND nation_name != ? COLLATE NOCASE ORDER BY currency_symbol", (self.selected_nation,)).fetchall()
+            targets = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND nation_name != ? COLLATE NOCASE ORDER BY currency_name", (self.selected_nation,)).fetchall()
         
         options = [discord.SelectOption(label="USD (Gold Standard)", value="USD")]
         for sym, name, nat in targets[:24]:
@@ -166,7 +166,7 @@ class Nations(commands.Cog):
         
         try:
             with sqlite3.connect(get_db_file()) as con:
-                rows = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND currency_symbol IS NOT NULL ORDER BY currency_symbol").fetchall()
+                rows = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND currency_symbol IS NOT NULL ORDER BY currency_name").fetchall()
             for sym, name, nat in rows:
                 label = f"{sym} - {name} ({nat})"
                 if current.lower() in label.lower():
