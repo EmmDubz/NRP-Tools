@@ -56,8 +56,19 @@ The on-screen RP clock does not jump; only the baseline for future progression c
 | Variable | Required | Meaning |
 |----------|----------|--------|
 | `DISCORD_TOKEN` | Yes | Bot token from the Developer Portal. |
-| `API_HOST` | No | HTTP bind address (default `127.0.0.1`). |
+| `API_HOST` | No | HTTP bind address (default `0.0.0.0`). |
 | `API_PORT` | No | If unset or `0`, the HTTP API is disabled. |
-| `API_SECRET` | For reminder routes | Bearer secret for `/api/reminders` (`GET` / `POST` / `DELETE`). |
+| `API_SECRET` | For all routes | Bearer secret for all `/api/` endpoints. |
+
+### API Endpoints
+
+- `GET /api/time`: Current RP date and configuration.
+- `GET /api/nations`: Summary list of all registered nations.
+- `GET /api/nations/{name}`: Full details for a specific nation, including organizations.
+- `GET /api/organizations`: Summary list of all organizations.
+- `GET /api/organizations/{id}`: Full details for an organization, including member list.
+- `GET /api/voting/proposals`: History and current status of all resolution proposals.
+
+**Authentication**: Include `Authorization: Bearer <API_SECRET>` in your request headers.
 
 See **`.env.example`** for a template.

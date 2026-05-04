@@ -4,7 +4,7 @@ from discord.ext import tasks, commands
 import sqlite3
 import datetime
 import traceback
-from .utils import get_db_file, load_config, save_config, is_admin, PaginationView, all_nations_autocomplete, get_current_rp_date
+from .utils import get_db_file, load_config, save_config, is_admin, PaginationView, all_nations_autocomplete, get_rp_time
 
 async def sync_org_roles_logic(bot):
     with sqlite3.connect(get_db_file()) as con:
@@ -174,7 +174,7 @@ class Admin(commands.Cog):
     @app_commands.autocomplete(nation=all_nations_autocomplete)
     async def admin_transfer(self, interaction: discord.Interaction, nation: str, new_owner: discord.User):
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("UPDATE nations SET user_id = ? WHERE nation_name = ?", (new_owner.id, nation))
+            con.execute("UPDATE nations SET user_id = ? WHERE nation_name = ? COLLATE NOCASE", (new_owner.id, nation))
             con.commit()
         await interaction.response.send_message(f"✅ Nation **{nation}** transferred to <@{new_owner.id}>.", ephemeral=True)
 
@@ -182,7 +182,7 @@ class Admin(commands.Cog):
     @app_commands.autocomplete(nation=all_nations_autocomplete)
     async def admin_deregister(self, interaction: discord.Interaction, nation: str):
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("DELETE FROM nations WHERE nation_name = ?", (nation,))
+            con.execute("DELETE FROM nations WHERE nation_name = ? COLLATE NOCASE", (nation,))
             con.commit()
         await interaction.response.send_message(f"🗑️ Nation **{nation}** deregistered.", ephemeral=True)
 

@@ -12,7 +12,7 @@ class BioModal(discord.ui.Modal, title="Update Nation Bio"):
         if current_bio: self.bio_input.default = current_bio
     async def on_submit(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("UPDATE nations SET bio = ? WHERE nation_name = ?", (self.bio_input.value, self.nation_name))
+            con.execute("UPDATE nations SET bio = ? WHERE nation_name = ? COLLATE NOCASE", (self.bio_input.value, self.nation_name))
             con.commit()
         await interaction.response.send_message(f"✅ Bio updated for **{self.nation_name}**.", ephemeral=True)
 
@@ -24,7 +24,7 @@ class WikiModal(discord.ui.Modal, title="Update Wiki Link"):
         if current_wiki: self.wiki_input.default = current_wiki
     async def on_submit(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("UPDATE nations SET wiki_link = ? WHERE nation_name = ?", (self.wiki_input.value, self.nation_name))
+            con.execute("UPDATE nations SET wiki_link = ? WHERE nation_name = ? COLLATE NOCASE", (self.wiki_input.value, self.nation_name))
             con.commit()
         await interaction.response.send_message(f"✅ Wiki link updated for **{self.nation_name}**.", ephemeral=True)
 
@@ -38,7 +38,7 @@ class CurrencyModal(discord.ui.Modal, title="Basic Currency Details"):
         if cur_sym: self.symbol_input.default = cur_sym
     async def on_submit(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("UPDATE nations SET currency_name = ?, currency_symbol = ? WHERE nation_name = ?", (self.name_input.value, self.symbol_input.value, self.nation_name))
+            con.execute("UPDATE nations SET currency_name = ?, currency_symbol = ? WHERE nation_name = ? COLLATE NOCASE", (self.name_input.value, self.symbol_input.value, self.nation_name))
             con.commit()
         await interaction.response.send_message(f"✅ Currency basic details updated for **{self.nation_name}**.", ephemeral=True)
 
@@ -55,7 +55,7 @@ class PegRateModal(discord.ui.Modal):
             await interaction.response.send_message("❌ Invalid rate. Use a number.", ephemeral=True)
             return
         with sqlite3.connect(get_db_file()) as con:
-            con.execute("UPDATE nations SET currency_peg_target = ?, currency_peg_rate = ? WHERE nation_name = ?", (self.target_name, rate, self.nation_name))
+            con.execute("UPDATE nations SET currency_peg_target = ?, currency_peg_rate = ? WHERE nation_name = ? COLLATE NOCASE", (self.target_name, rate, self.nation_name))
             con.commit()
         await interaction.response.send_message(f"✅ **{self.nation_name}** is now pegged to **{self.target_name}** at a rate of **{rate}**.", ephemeral=True)
 
@@ -85,7 +85,7 @@ class NationManagerView(discord.ui.View):
 
         if self.selected_nation:
             with sqlite3.connect(get_db_file()) as con:
-                row = con.execute("SELECT currency_name FROM nations WHERE nation_name = ?", (self.selected_nation,)).fetchone()
+                row = con.execute("SELECT currency_name FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()
             has_currency = row and row[0]
 
             btn_bio = discord.ui.Button(label="Edit Bio", style=discord.ButtonStyle.secondary, row=1)
@@ -109,24 +109,24 @@ class NationManagerView(discord.ui.View):
 
     async def bio_callback(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            bio = con.execute("SELECT bio FROM nations WHERE nation_name = ?", (self.selected_nation,)).fetchone()[0]
+            bio = con.execute("SELECT bio FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()[0]
         await interaction.response.send_modal(BioModal(self.selected_nation, bio))
 
     async def wiki_callback(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            wiki = con.execute("SELECT wiki_link FROM nations WHERE nation_name = ?", (self.selected_nation,)).fetchone()[0]
+            wiki = con.execute("SELECT wiki_link FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()[0]
         await interaction.response.send_modal(WikiModal(self.selected_nation, wiki))
 
     async def currency_callback(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            row = con.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ?", (self.selected_nation,)).fetchone()
+            row = con.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()
         await interaction.response.send_modal(CurrencyModal(self.selected_nation, row[0], row[1]))
 
     async def peg_callback(self, interaction: discord.Interaction):
         with sqlite3.connect(get_db_file()) as con:
-            row = con.execute("SELECT currency_name FROM nations WHERE nation_name = ?", (self.selected_nation,)).fetchone()
+            row = con.execute("SELECT currency_name FROM nations WHERE nation_name = ? COLLATE NOCASE", (self.selected_nation,)).fetchone()
             source_cur_name = row[0] if row else self.selected_nation
-            targets = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND nation_name != ? ORDER BY currency_symbol", (self.selected_nation,)).fetchall()
+            targets = con.execute("SELECT currency_symbol, currency_name, nation_name FROM nations WHERE currency_name IS NOT NULL AND nation_name != ? COLLATE NOCASE ORDER BY currency_symbol", (self.selected_nation,)).fetchall()
         
         options = [discord.SelectOption(label="USD (Gold Standard)", value="USD")]
         for sym, name, nat in targets[:24]:
@@ -148,7 +148,7 @@ def get_usd_value(nation_name, visited=None):
     visited.add(nation_name)
     
     with sqlite3.connect(get_db_file()) as con:
-        row = con.execute("SELECT currency_peg_target, currency_peg_rate FROM nations WHERE nation_name = ?", (nation_name,)).fetchone()
+        row = con.execute("SELECT currency_peg_target, currency_peg_rate FROM nations WHERE nation_name = ? COLLATE NOCASE", (nation_name,)).fetchone()
     
     if not row or not row[0] or row[1] is None: return 1.0
     target, rate = row
@@ -178,7 +178,7 @@ class Nations(commands.Cog):
     async def register(self, interaction: discord.Interaction, name: str):
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
-            cur.execute("SELECT 1 FROM nations WHERE nation_name = ?", (name,))
+            cur.execute("SELECT 1 FROM nations WHERE nation_name = ? COLLATE NOCASE", (name,))
             if cur.fetchone():
                 await interaction.response.send_message(f"❌ '{name}' is already taken.", ephemeral=True)
                 return
@@ -210,10 +210,10 @@ class Nations(commands.Cog):
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
             if from_currency == "USD": f_row = ("United States Dollar", "$")
-            else: f_row = cur.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ?", (from_currency,)).fetchone()
+            else: f_row = cur.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ? COLLATE NOCASE", (from_currency,)).fetchone()
             
             if to_currency == "USD": t_row = ("United States Dollar", "$")
-            else: t_row = cur.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ?", (to_currency,)).fetchone()
+            else: t_row = cur.execute("SELECT currency_name, currency_symbol FROM nations WHERE nation_name = ? COLLATE NOCASE", (to_currency,)).fetchone()
         
         if not f_row or not t_row:
             await interaction.response.send_message("❌ One or both currencies not found.", ephemeral=True)
@@ -234,13 +234,13 @@ class Nations(commands.Cog):
     async def overview(self, interaction: discord.Interaction, nation: str):
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
-            cur.execute("SELECT user_id, bio, currency_name, currency_symbol, wiki_link, currency_peg_target, currency_peg_rate FROM nations WHERE nation_name = ?", (nation,))
+            cur.execute("SELECT user_id, bio, currency_name, currency_symbol, wiki_link, currency_peg_target, currency_peg_rate FROM nations WHERE nation_name = ? COLLATE NOCASE", (nation,))
             row = cur.fetchone()
             if not row:
                 await interaction.response.send_message("Nation not found.", ephemeral=True)
                 return
             uid, bio, cname, csym, wiki, ptarg, prate = row
-            cur.execute("SELECT name FROM organizations o JOIN organization_members om ON o.org_id = om.org_id WHERE om.nation_name = ?", (nation,))
+            cur.execute("SELECT name FROM organizations o JOIN organization_members om ON o.org_id = om.org_id WHERE om.nation_name = ? COLLATE NOCASE", (nation,))
             orgs = [r[0] for r in cur.fetchall()]
         
         embed = discord.Embed(title=f"Nation Overview: {nation}", color=discord.Color.gold())
@@ -251,7 +251,7 @@ class Nations(commands.Cog):
             t_sym = "USD" if ptarg == "USD" else ""
             if not t_sym:
                 with sqlite3.connect(get_db_file()) as con:
-                    t_row = con.execute("SELECT currency_symbol FROM nations WHERE nation_name = ?", (ptarg,)).fetchone()
+                    t_row = con.execute("SELECT currency_symbol FROM nations WHERE nation_name = ? COLLATE NOCASE", (ptarg,)).fetchone()
                     t_sym = t_row[0] if t_row else ptarg
             curr_val += f"\n(Peg: 1 {csym} = {prate} {t_sym})"
         embed.add_field(name="Currency", value=curr_val, inline=True)

@@ -85,7 +85,7 @@ def resolution_label(resolution_id: int, config: Optional[dict] = None) -> str:
     p = branding_from_config(cfg)["resolution_prefix"]
     return f"{p}-{resolution_id:03d}"
 
-def get_current_rp_date():
+def get_rp_time():
     config = load_config()
     real_anchor_ms = config.get("rp_anchor_real_ms", 1752192000000)
     rp_anchor_ms = config.get("rp_anchor_game_ms", 978307200000)

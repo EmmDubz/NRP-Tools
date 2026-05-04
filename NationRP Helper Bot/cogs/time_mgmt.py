@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import tasks, commands
 import datetime
 import sqlite3
-from .utils import load_config, branding_from_config, get_current_rp_date, get_db_file, format_date_channel_name
+from .utils import load_config, branding_from_config, get_rp_time, get_db_file, format_date_channel_name
 
 class TimeManagement(commands.Cog):
     def __init__(self, bot):
@@ -17,7 +17,7 @@ class TimeManagement(commands.Cog):
     async def rp_time(self, interaction: discord.Interaction):
         cfg = load_config()
         b = branding_from_config(cfg)
-        rp_now = get_current_rp_date()
+        rp_now = get_rp_time()
         date_str = rp_now.strftime(b["rp_date_format"])
         time_str = rp_now.strftime(b["rp_time_format"])
         
@@ -35,7 +35,7 @@ class TimeManagement(commands.Cog):
             await interaction.response.send_message("❌ Invalid format. Please use `DD/MM/YYYY` (e.g., 25/12/2005).", ephemeral=True)
             return
 
-        rp_now = get_current_rp_date()
+        rp_now = get_rp_time()
         if target_dt < rp_now:
             await interaction.response.send_message(f"❌ That date ({date}) has already passed in RP time!", ephemeral=True)
             return
@@ -87,7 +87,7 @@ class TimeManagement(commands.Cog):
         await self.bot.wait_until_ready()
         try:
             config = load_config()
-            rp_now = get_current_rp_date()
+            rp_now = get_rp_time()
             date_channel_id = config.get("date_channel_id")
             if date_channel_id:
                 channel = self.bot.get_channel(date_channel_id)
