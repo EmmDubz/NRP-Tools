@@ -1,18 +1,33 @@
 # Nation RP Discord bot
 
-A Discord bot for communities that run **in-character resolutions** and votes, track an **RP calendar** against real time, send **RP-date reminders** by DM, and optionally expose a small **HTTP API** for a website or other automation.
+A modular Discord bot for roleplay communities. It manages **in-character resolutions**, tracks an **RP calendar**, handles **nation profiles**, and facilitates **organizational management**.
 
-This folder is usually used as part of the **NRP-Tools** monorepo (see the parent directory’s **README**). Open a terminal **inside this folder** (`NationRP Helper Bot`) before running the commands below.
+## Features
+
+- **RP Time**: Derived from real-world UTC anchors. Supports automatic voice channel renaming to display the current date.
+- **Nations**: Register and manage nation profiles with custom bios and currency settings.
+- **Organizations**: Create and join organizations (open or invite-only) with automated member role synchronization.
+- **Voting Hub**: Propose, vote on, and track resolutions. Automatic conclusion of votes based on duration.
+- **Admin Tools**: Comprehensive tools for managing nations, organizations, and activity checks across categories.
+- **HTTP API**: Optional API for exposing RP time and managing reminders.
+
+## Project Structure
+
+The bot is organized into **Cogs** for modularity:
+- `cogs/time_mgmt.py`: RP time calculation, `/time`, and DM reminders.
+- `cogs/voting.py`: Voting system, `/propose`, and results processing.
+- `cogs/nations.py`: Nation registration and `/mynations` management GUI.
+- `cogs/organizations.py`: Organization browser and membership management.
+- `cogs/admin.py`: Administrative oversight and role synchronization tasks.
+- `cogs/utils.py`: Shared utilities and database logic.
 
 ## Prerequisites
 
-- **Python 3.9+** (3.10+ recommended; the bot uses postponed annotations so `3.9` works on typical hosts)
-- A **Discord application** with a bot user and token ([Discord Developer Portal](https://discord.com/developers/applications))
-- **Privileged intents** as needed: the bot uses the **Server Members** intent for role-based checks. Enable it in the portal and when generating the invite URL.
+- **Python 3.9+**
+- **discord.py 2.0+**
+- A Discord bot token with **Server Members Intent** enabled.
 
 ## Install
-
-**Windows (PowerShell):**
 
 ```powershell
 python -m venv .venv
@@ -20,21 +35,10 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**macOS / Linux:**
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
 ## Configure
 
-1. Copy **[`.env.example`](.env.example)** to **`.env`**. Set **`DISCORD_TOKEN`** to your bot token. Optionally set **`API_HOST`**, **`API_PORT`**, and **`API_SECRET`** if you use the HTTP API (see below).
-
-2. Copy **[`config.example.json`](config.example.json)** to **`config.json`**. Fill in channel and role IDs and RP time settings. Every key is described in **[`CONFIG.md`](CONFIG.md)**.
-
-3. **Invite URL:** include the **`applications.commands`** scope so slash commands work. Grant permissions your server needs (e.g. Send Messages, Embed Links, Manage Roles if you use the ping role, **Manage Channels** only if you rely on automatic channel renaming for the date display).
+1. Copy **[`.env.example`](.env.example)** to **`.env`** and set your token.
+2. Copy **[`config.example.json`](config.example.json)** to **`config.json`**. See **[`CONFIG.md`](CONFIG.md)** for key details.
 
 ## Run
 
@@ -42,25 +46,10 @@ pip install -r requirements.txt
 python bot.py
 ```
 
-Slash commands are synced when the bot connects.
-
-## Features (summary)
-
-| Area | Notes |
-|------|--------|
-| **RP time** | Derived from two UTC anchors and `real_days_per_rp_year`; see **CONFIG.md** for the formula. |
-| **`/time`** | Anyone can see the current RP date/time. |
-| **`/admin rptimemanage`** | Same admin role: panel to edit RP clock anchors and dilation; optional **`SYNC`** aligns the IRL anchor to “now” without jumping the RP readout. |
-| **HTTP API** | If **`API_PORT`** in `.env` is a positive integer, **`GET /api/rp-time`** is public JSON (`rp_datetime_utc`, `rp_unix_ms`, anchors, `real_days_per_rp_year`). Reminder routes require **`Authorization: Bearer <API_SECRET>`**. Use a free port (avoid conflicting with existing services on the host). Downstream tools can point **`NRP_RP_TIME_URL`** at `http://127.0.0.1:<API_PORT>/api/rp-time` (see NirvaliStat **`tools/fetch_rp_time.py`**). |
-
-## Branding
-
-Display strings (server short name, resolution prefix, proposer role label, date formats, date channel rename template) are set in **`config.json`** so one codebase can serve different communities.
-
 ## Database
 
-SQLite defaults to **`fns_bot.db`**. Set **`database_path`** in `config.json` to change the file name; relative paths are resolved **next to `config.json`** (the bot folder), not the shell’s current directory. On first startup the bot creates tables and **adds any missing columns** on older databases automatically.
+Uses SQLite (**`fns_bot.db`** by default). Schema migrations are handled automatically on startup.
 
-## License
+## Tools
 
-The repository root should contain a **LICENSE** file chosen by the maintainer; until then, treat usage as unspecified and ask the author for terms.
+- **`force_results.py`**: A manual utility to revive or conclude a stuck resolution by ID.
