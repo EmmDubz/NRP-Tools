@@ -3,7 +3,8 @@ from discord import app_commands
 from discord.ext import tasks, commands
 import datetime
 import sqlite3
-from .utils import load_config, branding_from_config, get_rp_time, get_db_file, format_date_channel_name
+from .utils import load_config, branding_from_config, get_rp_time, get_db_file, format_date_channel_name, get_rp_time_from_irl, get_irl_time_from_rp
+import re
 
 class TimeManagement(commands.Cog):
     def __init__(self, bot):
@@ -18,13 +19,78 @@ class TimeManagement(commands.Cog):
         cfg = load_config()
         b = branding_from_config(cfg)
         rp_now = get_rp_time()
+        irl_now = datetime.datetime.now(datetime.timezone.utc)
         date_str = rp_now.strftime(b["rp_date_format"])
         time_str = rp_now.strftime(b["rp_time_format"])
         
         embed = discord.Embed(title="🕰️ Current RP Time", color=discord.Color.light_grey())
-        embed.add_field(name="Date", value=f"**{date_str}**", inline=True)
-        embed.add_field(name="Time", value=f"{time_str}", inline=True)
+        embed.add_field(name="RP Date", value=f"**{date_str}**", inline=True)
+        embed.add_field(name="RP Time", value=f"{time_str}", inline=True)
+        embed.set_footer(text=f"IRL Time: {irl_now.strftime('%d/%m/%Y %H:%M:%S')} UTC")
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="timecheck", description="Check what a specific IRL time is in RP, or vice versa.")
+    @app_commands.describe(irl_date="Format: DD/MM/YYYY HH:MM or relative like +7d", rp_date="Format: DD/MM/YYYY HH:MM")
+    async def timecheck(self, interaction: discord.Interaction, irl_date: str = None, rp_date: str = None):
+        cfg = load_config()
+        b = branding_from_config(cfg)
+        
+        if irl_date and rp_date:
+            await interaction.response.send_message("❌ Please provide either an IRL date OR an RP date, not both.", ephemeral=True)
+            return
+
+        if irl_date:
+            # Try relative first
+            target_irl = None
+            rel_match = re.match(r"\+(\d+)([dhwm])", irl_date.lower().strip())
+            if rel_match:
+                val = int(rel_match.group(1))
+                unit = rel_match.group(2)
+                target_irl = datetime.datetime.now(datetime.timezone.utc)
+                if unit == 'd': target_irl += datetime.timedelta(days=val)
+                elif unit == 'h': target_irl += datetime.timedelta(hours=val)
+                elif unit == 'w': target_irl += datetime.timedelta(weeks=val)
+                elif unit == 'm': target_irl += datetime.timedelta(days=val*30)
+            else:
+                # Try absolute
+                formats = ["%d/%m/%Y %H:%M", "%d/%m/%Y"]
+                for fmt in formats:
+                    try:
+                        target_irl = datetime.datetime.strptime(irl_date, fmt).replace(tzinfo=datetime.timezone.utc)
+                        break
+                    except ValueError: continue
+            
+            if not target_irl:
+                await interaction.response.send_message("❌ Invalid IRL date format. Use `DD/MM/YYYY HH:MM` or `+7d`.", ephemeral=True)
+                return
+            
+            target_rp = get_rp_time_from_irl(target_irl)
+            embed = discord.Embed(title="🌓 Time Conversion (IRL ➔ RP)", color=discord.Color.blue())
+            embed.add_field(name="IRL Date", value=f"`{target_irl.strftime('%d/%m/%Y %H:%M')}`", inline=False)
+            embed.add_field(name="Resulting RP Date", value=f"**{target_rp.strftime(b['rp_date_format'])}**", inline=True)
+            embed.add_field(name="Resulting RP Time", value=f"{target_rp.strftime(b['rp_time_format'])}", inline=True)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        elif rp_date:
+            formats = ["%d/%m/%Y %H:%M", "%d/%m/%Y"]
+            target_rp = None
+            for fmt in formats:
+                try:
+                    target_rp = datetime.datetime.strptime(rp_date, fmt).replace(tzinfo=datetime.timezone.utc)
+                    break
+                except ValueError: continue
+            
+            if not target_rp:
+                await interaction.response.send_message("❌ Invalid RP date format. Use `DD/MM/YYYY HH:MM`.", ephemeral=True)
+                return
+            
+            target_irl = get_irl_time_from_rp(target_rp)
+            embed = discord.Embed(title="🌓 Time Conversion (RP ➔ IRL)", color=discord.Color.green())
+            embed.add_field(name="RP Date", value=f"`{target_rp.strftime('%d/%m/%Y %H:%M')}`", inline=False)
+            embed.add_field(name="Resulting IRL Date", value=f"**{target_irl.strftime('%d/%m/%Y %H:%M')}** UTC", inline=False)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Please provide either `irl_date` or `rp_date`.", ephemeral=True)
 
     @app_commands.command(name="remindme", description="Set a DM reminder for a specific RP Date.")
     @app_commands.describe(date="Format: DD/MM/YYYY", message="What to remind you about.")

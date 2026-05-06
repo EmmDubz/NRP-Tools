@@ -85,18 +85,29 @@ def resolution_label(resolution_id: int, config: Optional[dict] = None) -> str:
     p = branding_from_config(cfg)["resolution_prefix"]
     return f"{p}-{resolution_id:03d}"
 
-def get_rp_time():
+def get_time_factor(real_days_per_rp_year: float) -> float:
+    return 31556952 / (real_days_per_rp_year * 86400)
+
+def get_rp_time_from_irl(irl_dt: datetime.datetime) -> datetime.datetime:
     config = load_config()
-    real_anchor_ms = config.get("rp_anchor_real_ms", 1752192000000)
-    rp_anchor_ms = config.get("rp_anchor_game_ms", 978307200000)
-    real_days_per_year = config.get("real_days_per_rp_year", 40)
-    real_anchor = real_anchor_ms / 1000
-    rp_anchor = rp_anchor_ms / 1000
-    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
-    real_delta = now - real_anchor
-    factor = 31556952 / (real_days_per_year * 86400)
+    real_anchor = config.get("rp_anchor_real_ms", 1752192000000) / 1000
+    rp_anchor = config.get("rp_anchor_game_ms", 978307200000) / 1000
+    factor = get_time_factor(config.get("real_days_per_rp_year", 40))
+    real_delta = irl_dt.timestamp() - real_anchor
     rp_delta = real_delta * factor
     return datetime.datetime.fromtimestamp(rp_anchor + rp_delta, datetime.timezone.utc)
+
+def get_irl_time_from_rp(rp_dt: datetime.datetime) -> datetime.datetime:
+    config = load_config()
+    real_anchor = config.get("rp_anchor_real_ms", 1752192000000) / 1000
+    rp_anchor = config.get("rp_anchor_game_ms", 978307200000) / 1000
+    factor = get_time_factor(config.get("real_days_per_rp_year", 40))
+    rp_delta = rp_dt.timestamp() - rp_anchor
+    real_delta = rp_delta / factor
+    return datetime.datetime.fromtimestamp(real_anchor + real_delta, datetime.timezone.utc)
+
+def get_rp_time():
+    return get_rp_time_from_irl(datetime.datetime.now(datetime.timezone.utc))
 
 def format_date_channel_name(rp_now: datetime.datetime, config: dict) -> str:
     b = branding_from_config(config)

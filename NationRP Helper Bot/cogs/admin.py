@@ -77,6 +77,72 @@ class AdminOrgView(discord.ui.View):
         await sync_org_roles_logic(self.bot)
         await interaction.followup.send("✅ Role sync completed.", ephemeral=True)
 
+class TimeManageView(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=600)
+        self.bot = bot
+
+    @discord.ui.button(label="Resync (Raw MS)", style=discord.ButtonStyle.secondary)
+    async def resync_ms(self, interaction: discord.Interaction, button: discord.ui.Button):
+        class MSModal(discord.ui.Modal, title="Resync (Millisecond Offsets)"):
+            real_ms = discord.ui.TextInput(label="Real Anchor (ms)", required=True)
+            game_ms = discord.ui.TextInput(label="Game Anchor (ms)", required=True)
+            async def on_submit(self, sub: discord.Interaction):
+                try:
+                    from .utils import save_config
+                    save_config({"rp_anchor_real_ms": int(self.real_ms.value), "rp_anchor_game_ms": int(self.game_ms.value)})
+                    await sub.response.send_message("✅ Anchors updated.", ephemeral=True)
+                except: await sub.response.send_message("❌ Invalid numbers.", ephemeral=True)
+        
+        cfg = load_config()
+        m = MSModal()
+        m.real_ms.default = str(cfg.get("rp_anchor_real_ms", ""))
+        m.game_ms.default = str(cfg.get("rp_anchor_game_ms", ""))
+        await interaction.response.send_modal(m)
+
+    @discord.ui.button(label="Resync (Date/Time)", style=discord.ButtonStyle.primary)
+    async def resync_date(self, interaction: discord.Interaction, button: discord.ui.Button):
+        class DTModal(discord.ui.Modal, title="Resync (Date/Time)"):
+            irl_in = discord.ui.TextInput(label="IRL Date (YYYY-MM-DD HH:MM)", placeholder="2024-01-01 12:00", required=True)
+            rp_in = discord.ui.TextInput(label="RP Date (YYYY-MM-DD HH:MM)", placeholder="2000-01-01 00:00", required=True)
+            async def on_submit(self, sub: discord.Interaction):
+                try:
+                    from .utils import save_config
+                    fmt = "%Y-%m-%d %H:%M"
+                    irl_dt = datetime.datetime.strptime(self.irl_in.value, fmt).replace(tzinfo=datetime.timezone.utc)
+                    rp_dt = datetime.datetime.strptime(self.rp_in.value, fmt).replace(tzinfo=datetime.timezone.utc)
+                    save_config({
+                        "rp_anchor_real_ms": int(irl_dt.timestamp() * 1000),
+                        "rp_anchor_game_ms": int(rp_dt.timestamp() * 1000)
+                    })
+                    await sub.response.send_message("✅ Anchors updated via date sync.", ephemeral=True)
+                except Exception as e: await sub.response.send_message(f"❌ Error: {e}", ephemeral=True)
+        await interaction.response.send_modal(DTModal())
+
+    @discord.ui.button(label="Change Speed (Progression)", style=discord.ButtonStyle.success)
+    async def change_speed(self, interaction: discord.Interaction, button: discord.ui.Button):
+        class SpeedModal(discord.ui.Modal, title="Change Time Progression"):
+            days = discord.ui.TextInput(label="Real Days Per RP Year", required=True)
+            async def on_submit(self, sub: discord.Interaction):
+                try:
+                    from .utils import save_config, get_rp_time
+                    new_val = float(self.days.value)
+                    # Pin anchors to 'now' to prevent time jump
+                    now_irl = datetime.datetime.now(datetime.timezone.utc)
+                    now_rp = get_rp_time()
+                    save_config({
+                        "rp_anchor_real_ms": int(now_irl.timestamp() * 1000),
+                        "rp_anchor_game_ms": int(now_rp.timestamp() * 1000),
+                        "real_days_per_rp_year": new_val
+                    })
+                    await sub.response.send_message(f"✅ Speed updated to {new_val} days/year. Anchors pinned to 'now' to prevent jump.", ephemeral=True)
+                except Exception as e: await sub.response.send_message(f"❌ Error: {e}", ephemeral=True)
+        
+        cfg = load_config()
+        m = SpeedModal()
+        m.days.default = str(cfg.get("real_days_per_rp_year", ""))
+        await interaction.response.send_modal(m)
+
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -137,30 +203,10 @@ class Admin(commands.Cog):
             msg += f"**{rid}**: {title} - {st} ({dl})\n"
         await interaction.response.send_message(msg, ephemeral=True)
 
-    @admin_group.command(name="rptimemanage", description="Manage RP Time settings.")
+    @admin_group.command(name="timemanage", description="Manage RP Time settings.")
     @is_admin()
-    async def rptimemanage(self, interaction: discord.Interaction):
-        class TimeModal(discord.ui.Modal, title="Manage RP Time"):
-            real_ms = discord.ui.TextInput(label="Real Anchor (ms)", required=True)
-            game_ms = discord.ui.TextInput(label="Game Anchor (ms)", required=True)
-            days = discord.ui.TextInput(label="Real Days Per RP Year", required=True)
-            async def on_submit(self, sub: discord.Interaction):
-                try:
-                    updates = {
-                        "rp_anchor_real_ms": int(self.real_ms.value),
-                        "rp_anchor_game_ms": int(self.game_ms.value),
-                        "real_days_per_rp_year": float(self.days.value)
-                    }
-                    save_config(updates)
-                    await sub.response.send_message("✅ Time settings updated.", ephemeral=True)
-                except: await sub.response.send_message("❌ Invalid input.", ephemeral=True)
-        
-        cfg = load_config()
-        modal = TimeModal()
-        modal.real_ms.default = str(cfg.get("rp_anchor_real_ms", ""))
-        modal.game_ms.default = str(cfg.get("rp_anchor_game_ms", ""))
-        modal.days.default = str(cfg.get("real_days_per_rp_year", ""))
-        await interaction.response.send_modal(modal)
+    async def admin_timemanage(self, interaction: discord.Interaction):
+        await interaction.response.send_message("### 🕰️ RP Time Management\nSelect an option to resync or change progression speed.", view=TimeManageView(self.bot), ephemeral=True)
 
     @admin_group.command(name="close", description="Force-close a resolution early.")
     async def admin_close(self, interaction: discord.Interaction, resolution_id: int):
