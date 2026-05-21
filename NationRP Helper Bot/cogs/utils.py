@@ -134,6 +134,14 @@ async def all_nations_autocomplete(interaction: discord.Interaction, current: st
         all_nations = [row[0] for row in cur.fetchall()]
     return [app_commands.Choice(name=n, value=n) for n in all_nations if current.lower() in n.lower()][:25]
 
+async def user_nations_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    dbf = get_db_file()
+    with sqlite3.connect(dbf) as con:
+        cur = con.cursor()
+        cur.execute("SELECT nation_name FROM nations WHERE user_id = ? ORDER BY nation_name", (interaction.user.id,))
+        nations = [row[0] for row in cur.fetchall()]
+    return [app_commands.Choice(name=n, value=n) for n in nations if current.lower() in n.lower()][:25]
+
 def initialize_database():
     dbf = get_db_file()
     with sqlite3.connect(dbf) as con:
@@ -152,6 +160,7 @@ def initialize_database():
         cur.execute("PRAGMA table_info(resolutions)")
         res_cols = {row[1] for row in cur.fetchall()}
         if "proposer_nation_name" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN proposer_nation_name TEXT")
+        if "proposing_country" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN proposing_country TEXT")
         if "was_force_closed" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN was_force_closed INTEGER NOT NULL DEFAULT 0")
         if "result_status" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN result_status TEXT")
 

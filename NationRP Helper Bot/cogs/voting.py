@@ -4,7 +4,32 @@ from discord.ext import tasks, commands
 import datetime
 import sqlite3
 from enum import Enum
-from .utils import load_config, branding_from_config, get_db_file, resolution_label, PaginationView, is_admin_check, all_nations_autocomplete
+from typing import Optional
+from .utils import load_config, get_db_file, resolution_label, PaginationView, is_admin_check, all_nations_autocomplete, user_nations_autocomplete
+
+def format_proposer_line(proposer_name: str, proposing_country: Optional[str] = None) -> str:
+    if proposing_country:
+        return f"Proposed by {proposer_name} ({proposing_country})"
+    return f"Proposed by {proposer_name}"
+
+def build_proposal_embed(res_id: int, title: str, text: str, deadline_iso: str, proposer_name: str, proposing_country: Optional[str], config: dict) -> discord.Embed:
+    rl = resolution_label(res_id, config)
+    deadline = datetime.datetime.fromisoformat(deadline_iso)
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=datetime.timezone.utc)
+    deadline_ts = int(deadline.timestamp())
+    embed = discord.Embed(
+        title=f"Resolution {rl}: {title}",
+        description=text,
+        color=discord.Color.blue(),
+    )
+    embed.add_field(
+        name="Deadline",
+        value=f"Closes <t:{deadline_ts}:R> (at <t:{deadline_ts}:F>)",
+        inline=False,
+    )
+    embed.set_footer(text=format_proposer_line(proposer_name, proposing_country))
+    return embed
 
 class VoteChoice(Enum):
     aye = "Aye"
@@ -68,8 +93,14 @@ class Voting(commands.Cog):
         self.check_proposals.cancel()
 
     @app_commands.command(name="propose", description="Submit a new resolution for voting.")
-    @app_commands.describe(title="Short title of the resolution", text="Full text of the proposal", duration_days="How many days to vote (default 3)")
-    async def propose(self, interaction: discord.Interaction, title: str, text: str, duration_days: int = 3):
+    @app_commands.describe(
+        title="Short title of the resolution",
+        text="Full text of the proposal",
+        duration_days="How many days to vote (default 3)",
+        proposing_country="Nation proposing this resolution (required if you have multiple registered nations)",
+    )
+    @app_commands.autocomplete(proposing_country=user_nations_autocomplete)
+    async def propose(self, interaction: discord.Interaction, title: str, text: str, duration_days: int = 3, proposing_country: str = None):
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
             cur.execute("SELECT nation_name FROM nations WHERE user_id = ?", (interaction.user.id,))
@@ -79,6 +110,28 @@ class Voting(commands.Cog):
             await interaction.response.send_message("You need to `/register` a nation before you can propose a resolution.", ephemeral=True)
             return
 
+        if len(nations) > 1:
+            if not proposing_country:
+                nation_list = ", ".join(f"**{n}**" for n in nations)
+                await interaction.response.send_message(
+                    f"You have multiple registered nations ({nation_list}). "
+                    "Please specify `proposing_country` with the nation proposing this resolution.",
+                    ephemeral=True,
+                )
+                return
+            selected_nation = next((n for n in nations if n.lower() == proposing_country.lower()), None)
+            if not selected_nation:
+                nation_list = ", ".join(f"**{n}**" for n in nations)
+                await interaction.response.send_message(
+                    f"`{proposing_country}` is not one of your registered nations ({nation_list}). Please try again.",
+                    ephemeral=True,
+                )
+                return
+            display_country = selected_nation
+        else:
+            selected_nation = nations[0]
+            display_country = proposing_country or selected_nation
+
         cfg = load_config()
         comrade_role_id = cfg.get("comrade_role_id")
         if comrade_role_id:
@@ -87,20 +140,30 @@ class Voting(commands.Cog):
                 await interaction.response.send_message(f"❌ You need the **{role.name}** role to propose resolutions.", ephemeral=True)
                 return
 
-        deadline = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=duration_days)).isoformat()
+        proposals_channel_id = cfg.get("proposals_channel_id")
+        target_channel = self.bot.get_channel(proposals_channel_id) if proposals_channel_id else interaction.channel
+        if not target_channel:
+            await interaction.response.send_message("The configured proposals channel could not be found. Contact an admin.", ephemeral=True)
+            return
+
+        deadline_dt = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=duration_days)
+        deadline = deadline_dt.isoformat()
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
-            cur.execute("INSERT INTO resolutions (title, text, proposer_name, proposer_nation_name, deadline_iso, original_channel_id) VALUES (?, ?, ?, ?, ?, ?)",
-                        (title, text, interaction.user.display_name, nations[0], deadline, interaction.channel_id))
+            cur.execute(
+                "INSERT INTO resolutions (title, text, proposer_name, proposer_nation_name, proposing_country, deadline_iso, original_channel_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (title, text, interaction.user.display_name, selected_nation, display_country, deadline, target_channel.id),
+            )
             res_id = cur.lastrowid
             con.commit()
 
-        cfg = load_config()
         rl = resolution_label(res_id, cfg)
-        embed = discord.Embed(title=f"New Resolution: {rl}", description=f"**{title}**\n\n{text}", color=discord.Color.blue())
-        embed.set_footer(text=f"Proposer: {interaction.user.display_name} ({nations[0]}) | Deadline: {duration_days} days")
-        
-        await interaction.response.send_message(f"### 📢 {rl} Proposed!", embed=embed, view=VoteView(res_id))
+        embed = build_proposal_embed(res_id, title, text, deadline, interaction.user.display_name, display_country, cfg)
+        ping_role_id = cfg.get("ping_role_id")
+        ping = f"<@&{ping_role_id}>" if ping_role_id else ""
+
+        await target_channel.send(content=ping, embed=embed, view=VoteView(res_id))
+        await interaction.response.send_message(f"✅ **{rl}** submitted.", ephemeral=True)
 
     @app_commands.command(name="resolutions", description="Lists past and active resolutions.")
     async def resolutions(self, interaction: discord.Interaction):
@@ -141,12 +204,12 @@ class Voting(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
-            cur.execute("SELECT title, text, proposer_nation_name, deadline_iso, is_active, was_force_closed FROM resolutions WHERE resolution_id = ?", (resolution_id,))
+            cur.execute("SELECT title, text, proposer_name, proposer_nation_name, proposing_country, deadline_iso, is_active, was_force_closed FROM resolutions WHERE resolution_id = ?", (resolution_id,))
             row = cur.fetchone()
             if not row:
                 await interaction.followup.send(f"Resolution ID `{resolution_id}` not found.", ephemeral=True)
                 return
-            title, text, proposer, deadline, active, forced = row
+            title, text, proposer_name, proposer_nation, proposing_country, deadline, active, forced = row
             cur.execute("SELECT nation_name, vote_choice FROM votes WHERE resolution_id = ?", (resolution_id,))
             votes = cur.fetchall()
 
@@ -154,7 +217,10 @@ class Voting(commands.Cog):
         cfg = load_config()
         embed = discord.Embed(title=f"Details for {resolution_label(resolution_id, cfg)}: {title}", description=text, color=discord.Color.green() if active else discord.Color.dark_grey())
         embed.add_field(name="Status", value=status, inline=True)
-        embed.add_field(name="Proposer", value=proposer or "N/A", inline=True)
+        proposer_display = format_proposer_line(proposer_name, proposing_country)
+        if proposer_nation:
+            proposer_display += f"\nRegistered nation: {proposer_nation}"
+        embed.add_field(name="Proposer", value=proposer_display, inline=True)
         
         aye = [n for n, c in votes if c == 'aye']
         nay = [n for n, c in votes if c == 'nay']
