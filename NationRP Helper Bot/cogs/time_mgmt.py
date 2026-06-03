@@ -164,13 +164,18 @@ class TimeManagement(commands.Cog):
             current_iso = rp_now.strftime("%Y-%m-%d")
             with sqlite3.connect(get_db_file()) as con:
                 cur = con.cursor()
-                cur.execute("SELECT id, user_id, message FROM reminders WHERE target_date_iso <= ?", (current_iso,))
+                cur.execute("SELECT id, user_id, target_date_iso, message FROM reminders WHERE target_date_iso <= ?", (current_iso,))
                 due = cur.fetchall()
-                for rid, uid, msg in due:
+                for rid, uid, target_date, msg in due:
                     user = self.bot.get_user(uid)
                     if user:
-                        try: await user.send(f"📅 **RP Reminder:** {msg}")
-                        except: pass
+                        try:
+                            embed = discord.Embed(title="📅 RP Date Reminder!", color=discord.Color.magenta())
+                            embed.description = f"The RP Date has reached **{target_date}**."
+                            embed.add_field(name="Reminder", value=msg)
+                            await user.send(embed=embed)
+                        except Exception as e:
+                            print(f"Error sending DM to {uid}: {e}")
                     cur.execute("DELETE FROM reminders WHERE id = ?", (rid,))
                 con.commit()
         except Exception as e:
