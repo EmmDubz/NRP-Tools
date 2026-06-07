@@ -229,8 +229,11 @@ class Voting(commands.Cog):
         embed.add_field(name=f"Nays ({len(nay)})", value="\n".join(f"- {n}" for n in nay) or "None", inline=False)
         embed.add_field(name=f"Abstains ({len(abst)})", value="\n".join(f"- {n}" for n in abst) or "None", inline=False)
         
-        view = VoteView(resolution_id) if active else None
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        if active:
+            view = VoteView(resolution_id)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="repeal", description="Mark a passed resolution as Repealed/Ended.")
     async def repeal(self, interaction: discord.Interaction, resolution_id: int, reason: str):
