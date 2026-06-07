@@ -311,13 +311,17 @@ class Voting(commands.Cog):
                         continue
                     target_id = results_channel_id or chan_id
                     channel = self.bot.get_channel(target_id)
-                    cur.execute("SELECT vote_choice FROM votes WHERE resolution_id = ?", (res_id,))
-                    v_rows = cur.fetchall()
-                    aye = [r for r in v_rows if r[0] == 'aye']
-                    nay = [r for r in v_rows if r[0] == 'nay']
+                    cur.execute("SELECT nation_name, vote_choice FROM votes WHERE resolution_id = ?", (res_id,))
+                    votes = cur.fetchall()
+                    aye = [n for n, c in votes if c == 'aye']
+                    nay = [n for n, c in votes if c == 'nay']
+                    abstain = [n for n, c in votes if c == 'abstain']
                     res_str = "Accepted" if len(aye) > len(nay) else "Rejected"
                     rl = resolution_label(res_id, config)
                     embed = discord.Embed(title=f"Vote Concluded on {rl}: {res_str}", description=f"**{title}**", color=discord.Color.green() if res_str == "Accepted" else discord.Color.red())
+                    embed.add_field(name=f"Ayes ({len(aye)})", value="\n".join(aye) or "None", inline=True)
+                    embed.add_field(name=f"Nays ({len(nay)})", value="\n".join(nay) or "None", inline=True)
+                    embed.add_field(name=f"Abstains ({len(abstain)})", value="\n".join(abstain) or "None", inline=True)
                     if channel:
                         ping = f"<@&{ping_role_id}>" if ping_role_id else ""
                         await channel.send(content=ping, embed=embed)
