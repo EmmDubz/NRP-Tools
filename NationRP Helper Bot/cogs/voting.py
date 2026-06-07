@@ -275,6 +275,10 @@ class Voting(commands.Cog):
             if not is_active:
                 await interaction.followup.send("This resolution is already concluded.", ephemeral=True)
                 return
+            # Fetch voter user IDs before deleting votes
+            cur.execute("SELECT DISTINCT n.user_id FROM votes v JOIN nations n ON v.nation_name = n.nation_name WHERE v.resolution_id = ?", (resolution_id,))
+            voter_ids = [r[0] for r in cur.fetchall() if r[0] is not None]
+            
             cur.execute("UPDATE resolutions SET text = ? WHERE resolution_id = ?", (new_text, resolution_id))
             cur.execute("DELETE FROM votes WHERE resolution_id = ?", (resolution_id,))
             con.commit()
@@ -288,6 +292,48 @@ class Voting(commands.Cog):
                 target_channel = await self.bot.fetch_channel(original_channel_id)
             except Exception:
                 target_channel = None
+
+        ping_role_id = cfg.get("ping_role_id")
+        ping_role = None
+        if ping_role_id and target_channel:
+            ping_role = target_channel.guild.get_role(ping_role_id)
+
+        voter_pings = []
+        if target_channel:
+            for v_id in voter_ids:
+                member = target_channel.guild.get_member(v_id)
+                if not member:
+                    try:
+                        member = await target_channel.guild.fetch_member(v_id)
+                    except Exception:
+                        member = None
+                
+                if member:
+                    has_ping_role = False
+                    if ping_role and ping_role in member.roles:
+                        has_ping_role = True
+                    
+                    if not has_ping_role:
+                        voter_pings.append(member.mention)
+
+        ping_parts = []
+        if ping_role:
+            ping_parts.append(ping_role.mention)
+        if voter_pings:
+            ping_parts.extend(voter_pings)
+        ping_content = " ".join(ping_parts) if ping_parts else ""
+
+        if target_channel:
+            alert_msg = (
+                f"{ping_content}\n"
+                f"⚠️ **AMENDMENT ALERT**\n"
+                f"**Resolution {rl} ({title})** has been amended by the proposer.\n"
+                f"All previous votes have been cleared. Please review the new text and **VOTE AGAIN**."
+            )
+            try:
+                await target_channel.send(content=alert_msg)
+            except Exception as e:
+                print(f"Failed to send amendment alert message: {e}")
 
         msg = None
         if target_channel:
