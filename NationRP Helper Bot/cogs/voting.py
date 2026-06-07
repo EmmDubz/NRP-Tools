@@ -162,7 +162,11 @@ class Voting(commands.Cog):
         ping_role_id = cfg.get("ping_role_id")
         ping = f"<@&{ping_role_id}>" if ping_role_id else ""
 
-        await target_channel.send(content=ping, embed=embed, view=VoteView(res_id))
+        msg = await target_channel.send(content=ping, embed=embed, view=VoteView(res_id))
+        with sqlite3.connect(get_db_file()) as con:
+            cur = con.cursor()
+            cur.execute("UPDATE resolutions SET message_id = ? WHERE resolution_id = ?", (msg.id, res_id))
+            con.commit()
         await interaction.response.send_message(f"✅ **{rl}** submitted.", ephemeral=True)
 
     @app_commands.command(name="resolutions", description="Lists past and active resolutions.")
@@ -256,23 +260,67 @@ class Voting(commands.Cog):
     @app_commands.command(name="amend", description="Modify a resolution you proposed (Wipes current votes).")
     @app_commands.describe(resolution_id="ID of resolution", new_text="The new text for the resolution.")
     async def amend(self, interaction: discord.Interaction, resolution_id: int, new_text: str):
+        await interaction.response.defer(ephemeral=True)
         with sqlite3.connect(get_db_file()) as con:
             cur = con.cursor()
-            cur.execute("SELECT proposer_name, is_active FROM resolutions WHERE resolution_id = ?", (resolution_id,))
+            cur.execute("SELECT proposer_name, is_active, title, deadline_iso, proposing_country, original_channel_id, message_id FROM resolutions WHERE resolution_id = ?", (resolution_id,))
             row = cur.fetchone()
             if not row:
-                await interaction.response.send_message("Resolution not found.", ephemeral=True)
+                await interaction.followup.send("Resolution not found.", ephemeral=True)
                 return
-            if row[0] != interaction.user.display_name and not is_admin_check(interaction):
-                await interaction.response.send_message("Only the original proposer can amend this.", ephemeral=True)
+            proposer_name, is_active, title, deadline_iso, proposing_country, original_channel_id, message_id = row
+            if proposer_name != interaction.user.display_name and not is_admin_check(interaction):
+                await interaction.followup.send("Only the original proposer can amend this.", ephemeral=True)
                 return
-            if not row[1]:
-                await interaction.response.send_message("This resolution is already concluded.", ephemeral=True)
+            if not is_active:
+                await interaction.followup.send("This resolution is already concluded.", ephemeral=True)
                 return
             cur.execute("UPDATE resolutions SET text = ? WHERE resolution_id = ?", (new_text, resolution_id))
             cur.execute("DELETE FROM votes WHERE resolution_id = ?", (resolution_id,))
             con.commit()
-        await interaction.response.send_message(f"✅ Resolution `{resolution_label(resolution_id)}` has been amended and votes have been reset.")
+
+        cfg = load_config()
+        rl = resolution_label(resolution_id, cfg)
+        
+        target_channel = self.bot.get_channel(original_channel_id)
+        if not target_channel:
+            try:
+                target_channel = await self.bot.fetch_channel(original_channel_id)
+            except Exception:
+                target_channel = None
+
+        msg = None
+        if target_channel:
+            if message_id:
+                try:
+                    msg = await target_channel.fetch_message(message_id)
+                except Exception:
+                    msg = None
+            
+            if not msg:
+                # Scan channel history to find the proposal message and edit it (working backwards to past posts)
+                try:
+                    async for m in target_channel.history(limit=100):
+                        if m.author == self.bot.user and m.embeds:
+                            first_embed = m.embeds[0]
+                            if first_embed.title and f"Resolution {rl}:" in first_embed.title:
+                                msg = m
+                                with sqlite3.connect(get_db_file()) as con:
+                                    cur = con.cursor()
+                                    cur.execute("UPDATE resolutions SET message_id = ? WHERE resolution_id = ?", (msg.id, resolution_id))
+                                    con.commit()
+                                break
+                except Exception as e:
+                    print(f"Error scanning history for RES-{resolution_id:03d}: {e}")
+
+        if msg:
+            try:
+                new_embed = build_proposal_embed(resolution_id, title, new_text, deadline_iso, proposer_name, proposing_country, cfg)
+                await msg.edit(embed=new_embed, view=VoteView(resolution_id))
+            except Exception as e:
+                print(f"Failed to edit original message for RES-{resolution_id:03d}: {e}")
+
+        await interaction.followup.send(f"✅ Resolution `{rl}` has been amended and votes have been reset.", ephemeral=True)
 
     @app_commands.command(name="votingrecord", description="See the full voting history for a nation.")
     @app_commands.autocomplete(nation=all_nations_autocomplete)

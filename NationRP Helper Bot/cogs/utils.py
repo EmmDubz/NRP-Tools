@@ -148,7 +148,7 @@ def initialize_database():
         cur = con.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("CREATE TABLE IF NOT EXISTS nations (user_id INTEGER NOT NULL, nation_name TEXT NOT NULL, PRIMARY KEY (user_id, nation_name))")
-        cur.execute("CREATE TABLE IF NOT EXISTS resolutions (resolution_id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, text TEXT NOT NULL, proposer_name TEXT NOT NULL, proposer_nation_name TEXT, deadline_iso TEXT NOT NULL, original_channel_id INTEGER NOT NULL, is_active INTEGER NOT NULL DEFAULT 1, was_force_closed INTEGER NOT NULL DEFAULT 0, result_status TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS resolutions (resolution_id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, text TEXT NOT NULL, proposer_name TEXT NOT NULL, proposer_nation_name TEXT, deadline_iso TEXT NOT NULL, original_channel_id INTEGER NOT NULL, is_active INTEGER NOT NULL DEFAULT 1, was_force_closed INTEGER NOT NULL DEFAULT 0, result_status TEXT, message_id INTEGER)")
         
         # Schema upgrades
         cur.execute("PRAGMA table_info(nations)")
@@ -163,6 +163,7 @@ def initialize_database():
         if "proposing_country" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN proposing_country TEXT")
         if "was_force_closed" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN was_force_closed INTEGER NOT NULL DEFAULT 0")
         if "result_status" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN result_status TEXT")
+        if "message_id" not in res_cols: cur.execute("ALTER TABLE resolutions ADD COLUMN message_id INTEGER")
 
         cur.execute("CREATE TABLE IF NOT EXISTS votes (resolution_id INTEGER NOT NULL, nation_name TEXT NOT NULL, vote_choice TEXT NOT NULL, PRIMARY KEY (resolution_id, nation_name))")
         cur.execute("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, target_date_iso TEXT NOT NULL, message TEXT NOT NULL)")
