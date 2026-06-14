@@ -102,9 +102,11 @@ class Voting(commands.Cog):
         except Exception as e:
             print(f"Error registering active resolution views: {e}")
         self.check_proposals.start()
+        self.post_unposted_resolutions.start()
 
     def cog_unload(self):
         self.check_proposals.cancel()
+        self.post_unposted_resolutions.cancel()
 
     @app_commands.command(name="propose", description="Submit a new resolution for voting.")
     @app_commands.describe(
@@ -415,31 +417,6 @@ class Voting(commands.Cog):
             ping_role_id = config.get("ping_role_id")
             with sqlite3.connect(get_db_file()) as con:
                 cur = con.cursor()
-                
-                # Check for active resolutions that lack a message ID (e.g. proposed via website)
-                cur.execute("SELECT resolution_id, title, text, proposer_name, proposing_country, deadline_iso, original_channel_id FROM resolutions WHERE is_active = 1 AND (message_id IS NULL OR message_id = 0)")
-                unposted = cur.fetchall()
-                for res_id, title, text, proposer_name, proposing_country, deadline, chan_id in unposted:
-                    target_chan_id = chan_id if chan_id else config.get("proposals_channel_id")
-                    channel = self.bot.get_channel(target_chan_id)
-                    if not channel:
-                        try:
-                            channel = await self.bot.fetch_channel(target_chan_id)
-                        except Exception:
-                            channel = None
-                    if channel:
-                        embed = build_proposal_embed(res_id, title, text, deadline, proposer_name, proposing_country, config)
-                        ping = f"<@&{ping_role_id}>" if ping_role_id else ""
-                        try:
-                            view = VoteView(res_id)
-                            msg = await channel.send(content=ping, embed=embed, view=view)
-                            cur.execute("UPDATE resolutions SET message_id = ?, original_channel_id = ? WHERE resolution_id = ?", (msg.id, target_chan_id, res_id))
-                            con.commit()
-                            self.bot.add_view(view)
-                            print(f"[Voting] Successfully posted and registered view for website resolution RES-{res_id:03d}")
-                        except Exception as send_err:
-                            print(f"Failed to send/update resolution post for RES-{res_id:03d}: {send_err}")
-
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 cur.execute("SELECT resolution_id, title, original_channel_id, was_force_closed FROM resolutions WHERE is_active = 1 AND deadline_iso < ?", (now_iso,))
                 concluded = cur.fetchall()
@@ -468,6 +445,39 @@ class Voting(commands.Cog):
                     con.commit()
         except Exception as e:
             print(f"Error in check_proposals: {e}")
+
+    @tasks.loop(count=1)
+    async def post_unposted_resolutions(self):
+        await self.bot.wait_until_ready()
+        try:
+            config = load_config()
+            ping_role_id = config.get("ping_role_id")
+            with sqlite3.connect(get_db_file()) as con:
+                cur = con.cursor()
+                cur.execute("SELECT resolution_id, title, text, proposer_name, proposing_country, deadline_iso, original_channel_id FROM resolutions WHERE is_active = 1 AND (message_id IS NULL OR message_id = 0)")
+                unposted = cur.fetchall()
+                for res_id, title, text, proposer_name, proposing_country, deadline, chan_id in unposted:
+                    target_chan_id = chan_id if chan_id else config.get("proposals_channel_id")
+                    channel = self.bot.get_channel(target_chan_id)
+                    if not channel:
+                        try:
+                            channel = await self.bot.fetch_channel(target_chan_id)
+                        except Exception:
+                            channel = None
+                    if channel:
+                        embed = build_proposal_embed(res_id, title, text, deadline, proposer_name, proposing_country, config)
+                        ping = f"<@&{ping_role_id}>" if ping_role_id else ""
+                        try:
+                            view = VoteView(res_id)
+                            msg = await channel.send(content=ping, embed=embed, view=view)
+                            cur.execute("UPDATE resolutions SET message_id = ?, original_channel_id = ? WHERE resolution_id = ?", (msg.id, target_chan_id, res_id))
+                            con.commit()
+                            self.bot.add_view(view)
+                            print(f"[Voting] Successfully posted and registered view for website resolution RES-{res_id:03d}")
+                        except Exception as send_err:
+                            print(f"Failed to send/update resolution post for RES-{res_id:03d}: {send_err}")
+        except Exception as e:
+            print(f"Error in post_unposted_resolutions: {e}")
 
 async def setup(bot):
     await bot.add_cog(Voting(bot))
