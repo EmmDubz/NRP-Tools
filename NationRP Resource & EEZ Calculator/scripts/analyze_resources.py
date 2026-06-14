@@ -263,7 +263,9 @@ def _group_nations_by_rgb(nations_cfg: dict[str, list]) -> list[tuple[tuple[int,
             
         for col in cols:
             key = tuple(int(x) for x in col)
-            rgb_to_names.setdefault(key, []).append(name)
+            names_list = rgb_to_names.setdefault(key, [])
+            if name not in names_list:
+                names_list.append(name)
     return list(rgb_to_names.items())
 
 

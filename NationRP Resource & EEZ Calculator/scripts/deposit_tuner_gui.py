@@ -1201,8 +1201,20 @@ class DepositTunerApp(tk.Tk):
 
         # Mouse wheel for the nation list window
         def _on_mousewheel(event: tk.Event) -> None:
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            try:
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except tk.TclError:
+                pass
         win.bind_all("<MouseWheel>", _on_mousewheel)
+
+        def _on_destroy(event: tk.Event) -> None:
+            if event.widget == win:
+                try:
+                    win.unbind_all("<MouseWheel>")
+                except tk.TclError:
+                    pass
+        win.bind("<Destroy>", _on_destroy)
 
         self._populate_nation_list()
 

@@ -14,13 +14,18 @@ def format_proposer_line(proposer_name: str, proposing_country: Optional[str] = 
 
 def build_proposal_embed(res_id: int, title: str, text: str, deadline_iso: str, proposer_name: str, proposing_country: Optional[str], config: dict) -> discord.Embed:
     rl = resolution_label(res_id, config)
-    deadline = datetime.datetime.fromisoformat(deadline_iso)
+    deadline = datetime.datetime.fromisoformat(deadline_iso.replace("Z", "+00:00"))
     if deadline.tzinfo is None:
         deadline = deadline.replace(tzinfo=datetime.timezone.utc)
     deadline_ts = int(deadline.timestamp())
+    
+    desc = text
+    if len(desc) > 3900:
+        desc = desc[:3900] + f"...\n\n*(Truncated. Read full text at https://fnrrp.org/resolutions/{res_id})*"
+        
     embed = discord.Embed(
         title=f"Resolution {rl}: {title}",
-        description=text,
+        description=desc,
         color=discord.Color.blue(),
     )
     embed.add_field(
@@ -87,6 +92,15 @@ class VoteView(discord.ui.View):
 class Voting(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        # Register views for active resolutions to ensure voting buttons function across restarts
+        try:
+            with sqlite3.connect(get_db_file()) as con:
+                cur = con.cursor()
+                cur.execute("SELECT resolution_id FROM resolutions WHERE is_active = 1")
+                for (res_id,) in cur.fetchall():
+                    self.bot.add_view(VoteView(res_id))
+        except Exception as e:
+            print(f"Error registering active resolution views: {e}")
         self.check_proposals.start()
 
     def cog_unload(self):
@@ -219,7 +233,10 @@ class Voting(commands.Cog):
 
         status = "Active" if active else ("Force Closed" if forced else "Concluded")
         cfg = load_config()
-        embed = discord.Embed(title=f"Details for {resolution_label(resolution_id, cfg)}: {title}", description=text, color=discord.Color.green() if active else discord.Color.dark_grey())
+        desc = text
+        if len(desc) > 3900:
+            desc = desc[:3900] + f"...\n\n*(Truncated. Read full text at https://fnrrp.org/resolutions/{resolution_id})*"
+        embed = discord.Embed(title=f"Details for {resolution_label(resolution_id, cfg)}: {title}", description=desc, color=discord.Color.green() if active else discord.Color.dark_grey())
         embed.add_field(name="Status", value=status, inline=True)
         proposer_display = format_proposer_line(proposer_name, proposing_country)
         if proposer_nation:
@@ -398,6 +415,31 @@ class Voting(commands.Cog):
             ping_role_id = config.get("ping_role_id")
             with sqlite3.connect(get_db_file()) as con:
                 cur = con.cursor()
+                
+                # Check for active resolutions that lack a message ID (e.g. proposed via website)
+                cur.execute("SELECT resolution_id, title, text, proposer_name, proposing_country, deadline_iso, original_channel_id FROM resolutions WHERE is_active = 1 AND (message_id IS NULL OR message_id = 0)")
+                unposted = cur.fetchall()
+                for res_id, title, text, proposer_name, proposing_country, deadline, chan_id in unposted:
+                    target_chan_id = chan_id if chan_id else config.get("proposals_channel_id")
+                    channel = self.bot.get_channel(target_chan_id)
+                    if not channel:
+                        try:
+                            channel = await self.bot.fetch_channel(target_chan_id)
+                        except Exception:
+                            channel = None
+                    if channel:
+                        embed = build_proposal_embed(res_id, title, text, deadline, proposer_name, proposing_country, config)
+                        ping = f"<@&{ping_role_id}>" if ping_role_id else ""
+                        try:
+                            view = VoteView(res_id)
+                            msg = await channel.send(content=ping, embed=embed, view=view)
+                            cur.execute("UPDATE resolutions SET message_id = ?, original_channel_id = ? WHERE resolution_id = ?", (msg.id, target_chan_id, res_id))
+                            con.commit()
+                            self.bot.add_view(view)
+                            print(f"[Voting] Successfully posted and registered view for website resolution RES-{res_id:03d}")
+                        except Exception as send_err:
+                            print(f"Failed to send/update resolution post for RES-{res_id:03d}: {send_err}")
+
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 cur.execute("SELECT resolution_id, title, original_channel_id, was_force_closed FROM resolutions WHERE is_active = 1 AND deadline_iso < ?", (now_iso,))
                 concluded = cur.fetchall()
